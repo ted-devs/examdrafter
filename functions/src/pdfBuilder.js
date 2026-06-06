@@ -2,6 +2,13 @@ const PDFDocument = require('pdfkit');
 const https = require('https');
 const http = require('http');
 
+const LAYOUT = {
+  margin: 50,
+  questionNumberWidth: 20,
+  questionTextOffset: 120,
+  pageBreakThreshold: 120,
+};
+
 function fetchImageBuffer(url) {
   return new Promise((resolve, reject) => {
     const client = url.startsWith('https') ? https : http;
@@ -14,27 +21,31 @@ function fetchImageBuffer(url) {
   });
 }
 
-function buildExamPdf(exam, questions, set, logoUrl) {
-  return new Promise(async (resolve, reject) => {
+async function buildExamPdf(exam, questions, set, logoUrl) {
+  let logoBuffer = null;
+  if (logoUrl) {
     try {
-      const doc = new PDFDocument({ margin: 50, bufferPages: true });
-      const buffers = [];
-      doc.on('data', (chunk) => buffers.push(chunk));
-      doc.on('end', () => resolve(Buffer.concat(buffers)));
-      doc.on('error', reject);
+      logoBuffer = await fetchImageBuffer(logoUrl);
+    } catch (_) {
+      // logo fetch failed — continue without it
+    }
+  }
 
+  return new Promise((resolve, reject) => {
+    const doc = new PDFDocument({ margin: LAYOUT.margin, bufferPages: true });
+    const buffers = [];
+    doc.on('data', (chunk) => buffers.push(chunk));
+    doc.on('end', () => resolve(Buffer.concat(buffers)));
+    doc.on('error', reject);
+
+    try {
       // --- Header ---
       const headerY = doc.y;
-      if (logoUrl) {
-        try {
-          const logoBuffer = await fetchImageBuffer(logoUrl);
-          doc.image(logoBuffer, 50, headerY, { width: 60 });
-        } catch (_) {
-          // logo fetch failed — continue without it
-        }
+      if (logoBuffer) {
+        doc.image(logoBuffer, LAYOUT.margin, headerY, { width: 60 });
       }
       doc.fontSize(16).font('Helvetica-Bold')
-        .text('Exam Drafter Institution', 50, headerY, { align: 'right' });
+        .text('Exam Drafter Institution', LAYOUT.margin, headerY, { align: 'right' });
 
       doc.moveDown(0.5);
       doc.fontSize(11).font('Helvetica')
@@ -43,7 +54,7 @@ function buildExamPdf(exam, questions, set, logoUrl) {
       doc.text(`Set: ${set}`);
 
       doc.moveDown(0.8);
-      doc.moveTo(50, doc.y).lineTo(doc.page.width - 50, doc.y).stroke();
+      doc.moveTo(LAYOUT.margin, doc.y).lineTo(doc.page.width - LAYOUT.margin, doc.y).stroke();
       doc.moveDown(0.8);
 
       // --- Student info ---
@@ -57,14 +68,15 @@ function buildExamPdf(exam, questions, set, logoUrl) {
 
       // --- Questions ---
       questions.forEach((q, index) => {
-        const questionY = doc.y;
-        const remainingSpace = doc.page.height - doc.page.margins.bottom - questionY;
-        if (remainingSpace < 120) {
+        const remainingSpace = doc.page.height - doc.page.margins.bottom - doc.y;
+        if (remainingSpace < LAYOUT.pageBreakThreshold) {
           doc.addPage();
         }
 
-        doc.font('Helvetica-Bold').text(`${index + 1}.`, 50, doc.y, { continued: true, width: 20 })
-          .font('Helvetica').text(` ${q.text}`, { width: doc.page.width - 120 });
+        doc.font('Helvetica-Bold')
+          .text(`${index + 1}.`, LAYOUT.margin, doc.y, { continued: true, width: LAYOUT.questionNumberWidth })
+          .font('Helvetica')
+          .text(` ${q.text}`, { width: doc.page.width - LAYOUT.questionTextOffset });
         doc.moveDown(0.3);
 
         q.options.forEach((opt) => {
@@ -80,7 +92,7 @@ function buildExamPdf(exam, questions, set, logoUrl) {
         doc.fontSize(9).font('Helvetica')
           .text(
             `Page ${i + 1} of ${range.count}`,
-            50,
+            LAYOUT.margin,
             doc.page.height - doc.page.margins.bottom - 10,
             { align: 'right' },
           );
