@@ -34,6 +34,7 @@ class _PrintSetupDialogState extends State<PrintSetupDialog> {
   @override
   void initState() {
     super.initState();
+    _useExisting = widget.existingLogoUrl != null;
   }
 
   Future<void> _pickLogo() async {
@@ -106,7 +107,7 @@ class _PrintSetupDialogState extends State<PrintSetupDialog> {
                   Image.network(
                     widget.existingLogoUrl!,
                     height: 48,
-                    errorBuilder: (_, __, ___) => const Icon(Icons.image),
+                    errorBuilder: (_, _, _) => const Icon(Icons.image),
                   ),
                   const SizedBox(width: 8),
                   TextButton(
