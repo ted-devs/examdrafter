@@ -43,14 +43,14 @@ class Department {
 
 class Course {
   final String id;
-  final String departmentId;
+  final String sectionId;
   final String name;
   final String code;
   final DateTime createdAt;
 
   Course({
     required this.id,
-    required this.departmentId,
+    required this.sectionId,
     required this.name,
     required this.code,
     required this.createdAt,
@@ -69,7 +69,7 @@ class Course {
 
     return Course(
       id: id,
-      departmentId: data['departmentId'] ?? '',
+      sectionId: data['sectionId'] ?? '',
       name: data['name'] ?? '',
       code: data['code'] ?? '',
       createdAt: parsedCreatedAt,
@@ -78,7 +78,7 @@ class Course {
 
   Map<String, dynamic> toMap() {
     return {
-      'departmentId': departmentId,
+      'sectionId': sectionId,
       'name': name,
       'code': code,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -137,13 +137,13 @@ class Topic {
 
 class Section {
   final String id;
-  final String courseId;
+  final String departmentId;
   final String name;
   final DateTime createdAt;
 
   Section({
     required this.id,
-    required this.courseId,
+    required this.departmentId,
     required this.name,
     required this.createdAt,
   });
@@ -161,7 +161,7 @@ class Section {
 
     return Section(
       id: id,
-      courseId: data['courseId'] ?? '',
+      departmentId: data['departmentId'] ?? '',
       name: data['name'] ?? '',
       createdAt: parsedCreatedAt,
     );
@@ -169,7 +169,7 @@ class Section {
 
   Map<String, dynamic> toMap() {
     return {
-      'courseId': courseId,
+      'departmentId': departmentId,
       'name': name,
       'createdAt': Timestamp.fromDate(createdAt),
     };

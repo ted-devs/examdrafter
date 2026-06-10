@@ -21,6 +21,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
 
   // Selection states for visualization
   String? _selectedDepartmentId;
+  String? _selectedSectionId;
   String? _selectedCourseId;
 
   @override
@@ -142,7 +143,8 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                         onTap: () {
                           setState(() {
                             _selectedDepartmentId = isSelected ? null : dept.id;
-                            // Reset course selection when department selection changes
+                            // Reset section and course selection when department selection changes
+                            _selectedSectionId = null;
                             _selectedCourseId = null;
                           });
                         },
@@ -226,14 +228,14 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
         children: [
           _buildHeaderSection(
             title: 'Manage Courses',
-            subtitle: _selectedDepartmentId != null
-                ? 'Showing courses in selected department.'
-                : 'Define courses and assign them to departments.',
+            subtitle: _selectedSectionId != null
+                ? 'Showing courses in selected section.'
+                : 'Define courses and assign them to sections.',
             buttonText: 'Add Course',
             onSearchChanged: (val) => setState(() => _courseSearch = val.toLowerCase()),
             onButtonPressed: () => _showAddEditCourseDialog(),
-            filterActive: _selectedDepartmentId != null,
-            onClearFilter: () => setState(() => _selectedDepartmentId = null),
+            filterActive: _selectedSectionId != null,
+            onClearFilter: () => setState(() => _selectedSectionId = null),
           ),
           const SizedBox(height: 24),
           Expanded(
@@ -247,13 +249,13 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                   return _buildEmptyState('No courses found', 'Create a course to populate this list.');
                 }
 
-                // Filter by department selection and search query
+                // Filter by section selection and search query
                 var courses = snapshot.data!.docs
                     .map((doc) => Course.fromMap(doc.data() as Map<String, dynamic>, doc.id))
                     .toList();
 
-                if (_selectedDepartmentId != null) {
-                  courses = courses.where((c) => c.departmentId == _selectedDepartmentId).toList();
+                if (_selectedSectionId != null) {
+                  courses = courses.where((c) => c.sectionId == _selectedSectionId).toList();
                 }
 
                 courses = courses
@@ -344,17 +346,17 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                                 ),
                               ),
                               const SizedBox(height: 8),
-                              // Fetch department code asynchronously or simply query
+                              // Fetch section code/name asynchronously
                               FutureBuilder<DocumentSnapshot>(
-                                future: _firestore.collection('departments').doc(course.departmentId).get(),
-                                builder: (context, deptSnapshot) {
-                                  String deptCode = '...';
-                                  if (deptSnapshot.hasData && deptSnapshot.data!.exists) {
-                                    final data = deptSnapshot.data!.data() as Map<String, dynamic>?;
-                                    deptCode = (data?['code'] ?? '').toString().toUpperCase();
+                                future: _firestore.collection('sections').doc(course.sectionId).get(),
+                                builder: (context, secSnapshot) {
+                                  String secName = '...';
+                                  if (secSnapshot.hasData && secSnapshot.data!.exists) {
+                                    final data = secSnapshot.data!.data() as Map<String, dynamic>?;
+                                    secName = (data?['name'] ?? '').toString();
                                   }
                                   return Text(
-                                    'Dept: $deptCode',
+                                    'Section: $secName',
                                     style: TextStyle(
                                       fontSize: 12,
                                       color: Colors.grey[600],
@@ -712,7 +714,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
   void _showAddEditCourseDialog({Course? course}) {
     final nameController = TextEditingController(text: course?.name);
     final codeController = TextEditingController(text: course?.code);
-    String? selectedDeptId = course?.departmentId ?? _selectedDepartmentId;
+    String? selectedSectionId = course?.sectionId ?? _selectedSectionId;
     final isEdit = course != null;
 
     showDialog(
@@ -726,26 +728,26 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Dropdown to choose department
+                  // Dropdown to choose section
                   StreamBuilder<QuerySnapshot>(
-                    stream: _firestore.collection('departments').snapshots(),
+                    stream: _firestore.collection('sections').snapshots(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) return const CircularProgressIndicator();
 
-                      final depts = snapshot.data!.docs;
+                      final sections = snapshot.data!.docs;
                       return DropdownButtonFormField<String>(
-                        initialValue: selectedDeptId,
-                        decoration: const InputDecoration(labelText: 'Department'),
-                        items: depts.map((doc) {
+                        initialValue: selectedSectionId,
+                        decoration: const InputDecoration(labelText: 'Section'),
+                        items: sections.map((doc) {
                           final data = doc.data() as Map<String, dynamic>;
                           return DropdownMenuItem(
                             value: doc.id,
-                            child: Text('${data['code']} - ${data['name']}'),
+                            child: Text(data['name'] ?? ''),
                           );
                         }).toList(),
                         onChanged: (val) {
                           setDialogState(() {
-                            selectedDeptId = val;
+                            selectedSectionId = val;
                           });
                         },
                       );
@@ -772,19 +774,19 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                   onPressed: () async {
                     final name = nameController.text.trim();
                     final code = codeController.text.trim();
-                    if (name.isEmpty || code.isEmpty || selectedDeptId == null) return;
+                    if (name.isEmpty || code.isEmpty || selectedSectionId == null) return;
 
                     if (isEdit) {
                       await _firestore.collection('courses').doc(course.id).update({
                         'name': name,
                         'code': code,
-                        'departmentId': selectedDeptId,
+                        'sectionId': selectedSectionId,
                       });
                     } else {
                       await _firestore.collection('courses').add({
                         'name': name,
                         'code': code,
-                        'departmentId': selectedDeptId,
+                        'sectionId': selectedSectionId,
                         'createdAt': FieldValue.serverTimestamp(),
                       });
                     }
@@ -926,14 +928,14 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
         children: [
           _buildHeaderSection(
             title: 'Manage Sections',
-            subtitle: _selectedCourseId != null
-                ? 'Showing sections in selected course.'
-                : 'Define sections associated with courses.',
+            subtitle: _selectedDepartmentId != null
+                ? 'Showing sections in selected department.'
+                : 'Define sections associated with departments.',
             buttonText: 'Add Section',
             onSearchChanged: (val) => setState(() => _sectionSearch = val.toLowerCase()),
             onButtonPressed: () => _showAddEditSectionDialog(),
-            filterActive: _selectedCourseId != null,
-            onClearFilter: () => setState(() => _selectedCourseId = null),
+            filterActive: _selectedDepartmentId != null,
+            onClearFilter: () => setState(() => _selectedDepartmentId = null),
           ),
           const SizedBox(height: 24),
           Expanded(
@@ -947,13 +949,13 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                   return _buildEmptyState('No sections found', 'Create a section to populate this list.');
                 }
 
-                // Filter by course selection and search query
+                // Filter by department selection and search query
                 var sections = snapshot.data!.docs
                     .map((doc) => Section.fromMap(doc.data() as Map<String, dynamic>, doc.id))
                     .toList();
 
-                if (_selectedCourseId != null) {
-                  sections = sections.where((s) => s.courseId == _selectedCourseId).toList();
+                if (_selectedDepartmentId != null) {
+                  sections = sections.where((s) => s.departmentId == _selectedDepartmentId).toList();
                 }
 
                 sections = sections
@@ -970,78 +972,88 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                   itemCount: sections.length,
                   itemBuilder: (context, idx) {
                     final section = sections[idx];
+                    final isSelected = _selectedSectionId == section.id;
 
                     return Card(
-                      color: Colors.white,
+                      color: isSelected ? lightBlueBg : Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(16),
                         side: BorderSide(
-                          color: Colors.grey.shade200,
-                          width: 1,
+                          color: isSelected ? accentBlue : Colors.grey.shade200,
+                          width: isSelected ? 2 : 1,
                         ),
                       ),
-                      child: Padding(
-                        padding: const EdgeInsets.all(20.0),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                const Icon(Icons.layers_rounded, color: primaryBlue, size: 24),
-                                Row(
-                                  children: [
-                                    IconButton(
-                                      icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.grey),
-                                      onPressed: () => _showAddEditSectionDialog(section: section),
-                                    ),
-                                    IconButton(
-                                      icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.redAccent),
-                                      onPressed: () => _showDeleteConfirmation(
-                                        title: 'Delete Section',
-                                        content: 'Are you sure you want to delete section "${section.name}"?',
-                                        onConfirm: () => _firestore.collection('sections').doc(section.id).delete(),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () {
+                          setState(() {
+                            _selectedSectionId = isSelected ? null : section.id;
+                            _selectedCourseId = null; // Clear downstream course selection
+                          });
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(20.0),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Row(
+                                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                children: [
+                                  const Icon(Icons.layers_rounded, color: primaryBlue, size: 24),
+                                  Row(
+                                    children: [
+                                      IconButton(
+                                        icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.grey),
+                                        onPressed: () => _showAddEditSectionDialog(section: section),
                                       ),
-                                    ),
-                                  ],
-                                )
-                              ],
-                            ),
-                            const SizedBox(height: 12),
-                            Expanded(
-                              child: Text(
-                                section.name,
-                                style: const TextStyle(
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
-                                  color: primaryBlue,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                                      IconButton(
+                                        icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.redAccent),
+                                        onPressed: () => _showDeleteConfirmation(
+                                          title: 'Delete Section',
+                                          content: 'Are you sure you want to delete section "${section.name}"?',
+                                          onConfirm: () => _firestore.collection('sections').doc(section.id).delete(),
+                                        ),
+                                      ),
+                                    ],
+                                  )
+                                ],
                               ),
-                            ),
-                            const SizedBox(height: 8),
-                            // Fetch course code/name asynchronously
-                            FutureBuilder<DocumentSnapshot>(
-                              future: _firestore.collection('courses').doc(section.courseId).get(),
-                              builder: (context, courseSnapshot) {
-                                String courseCode = '...';
-                                if (courseSnapshot.hasData && courseSnapshot.data!.exists) {
-                                  final data = courseSnapshot.data!.data() as Map<String, dynamic>?;
-                                  courseCode = (data?['code'] ?? '').toString().toUpperCase();
-                                }
-                                return Text(
-                                  'Course: $courseCode',
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    color: Colors.grey[600],
-                                    fontWeight: FontWeight.w500,
+                              const SizedBox(height: 12),
+                              Expanded(
+                                child: Text(
+                                  section.name,
+                                  style: const TextStyle(
+                                    fontSize: 18,
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryBlue,
                                   ),
-                                );
-                              },
-                            )
-                          ],
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
+                              const SizedBox(height: 8),
+                              // Fetch department code asynchronously
+                              FutureBuilder<DocumentSnapshot>(
+                                future: _firestore.collection('departments').doc(section.departmentId).get(),
+                                builder: (context, deptSnapshot) {
+                                  String deptCode = '...';
+                                  if (deptSnapshot.hasData && deptSnapshot.data!.exists) {
+                                    final data = deptSnapshot.data!.data() as Map<String, dynamic>?;
+                                    deptCode = (data?['code'] ?? '').toString().toUpperCase();
+                                  }
+                                  return Text(
+                                    'Dept: $deptCode',
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  );
+                                },
+                              )
+                            ],
+                          ),
                         ),
                       ),
                     );
@@ -1058,7 +1070,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
   // --- Section Form Dialog ---
   void _showAddEditSectionDialog({Section? section}) {
     final nameController = TextEditingController(text: section?.name);
-    String? selectedCourseId = section?.courseId ?? _selectedCourseId;
+    String? selectedDeptId = section?.departmentId ?? _selectedDepartmentId;
     final isEdit = section != null;
 
     showDialog(
@@ -1072,17 +1084,17 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  // Dropdown to choose course
+                  // Dropdown to choose department
                   StreamBuilder<QuerySnapshot>(
-                    stream: _firestore.collection('courses').snapshots(),
+                    stream: _firestore.collection('departments').snapshots(),
                     builder: (context, snapshot) {
                       if (!snapshot.hasData) return const CircularProgressIndicator();
 
-                      final courses = snapshot.data!.docs;
+                      final depts = snapshot.data!.docs;
                       return DropdownButtonFormField<String>(
-                        initialValue: selectedCourseId,
-                        decoration: const InputDecoration(labelText: 'Course'),
-                        items: courses.map((doc) {
+                        initialValue: selectedDeptId,
+                        decoration: const InputDecoration(labelText: 'Department'),
+                        items: depts.map((doc) {
                           final data = doc.data() as Map<String, dynamic>;
                           return DropdownMenuItem(
                             value: doc.id,
@@ -1091,7 +1103,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                         }).toList(),
                         onChanged: (val) {
                           setDialogState(() {
-                            selectedCourseId = val;
+                            selectedDeptId = val;
                           });
                         },
                       );
@@ -1112,17 +1124,17 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                 ElevatedButton(
                   onPressed: () async {
                     final name = nameController.text.trim();
-                    if (name.isEmpty || selectedCourseId == null) return;
+                    if (name.isEmpty || selectedDeptId == null) return;
 
                     if (isEdit) {
                       await _firestore.collection('sections').doc(section.id).update({
                         'name': name,
-                        'courseId': selectedCourseId,
+                        'departmentId': selectedDeptId,
                       });
                     } else {
                       await _firestore.collection('sections').add({
                         'name': name,
-                        'courseId': selectedCourseId,
+                        'departmentId': selectedDeptId,
                         'createdAt': FieldValue.serverTimestamp(),
                       });
                     }

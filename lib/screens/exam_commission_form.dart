@@ -18,6 +18,7 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
   // Form inputs
   String _section = '';
   String? _selectedDeptId;
+  String? _selectedSectionId;
   String? _selectedCourseId;
   DateTime? _adminDeadline;
 
@@ -103,8 +104,9 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                               onChanged: (val) {
                                 setState(() {
                                   _selectedDeptId = val;
-                                  _selectedCourseId = null; // Clear child course when dept changes
-                                  _section = ''; // Clear section when dept changes
+                                  _selectedSectionId = null; // Clear section when dept changes
+                                  _selectedCourseId = null; // Clear course when dept changes
+                                  _section = ''; // Clear section name when dept changes
                                 });
                               },
                               validator: (val) => val == null ? 'Please select a department.' : null,
@@ -113,29 +115,76 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Course Dropdown (Dependent on selected department)
+                        // Section Dropdown (Dependent on selected department)
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _firestore.collection('sections').snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const LinearProgressIndicator();
+                            final docs = snapshot.data!.docs;
+
+                            // Filter sections by selected department
+                            final filteredSections = docs.where((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              return data['departmentId'] == _selectedDeptId;
+                            }).map((doc) => Section.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+
+                            return DropdownButtonFormField<String>(
+                              key: ValueKey(_selectedDeptId),
+                              initialValue: _selectedSectionId,
+                              decoration: InputDecoration(
+                                labelText: 'Target Section',
+                                prefixIcon: const Icon(Icons.layers_rounded, color: primaryBlue),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              disabledHint: const Text('Select a department first'),
+                              items: _selectedDeptId == null
+                                  ? null
+                                  : filteredSections.map((sec) {
+                                      return DropdownMenuItem(
+                                        value: sec.id,
+                                        child: Text(sec.name),
+                                      );
+                                    }).toList(),
+                              onChanged: _selectedDeptId == null
+                                  ? null
+                                  : (val) {
+                                      setState(() {
+                                        _selectedSectionId = val;
+                                        _selectedCourseId = null; // Clear course when section changes
+                                        // Retrieve section name for the request
+                                        final secDoc = filteredSections.firstWhere((s) => s.id == val);
+                                        _section = secDoc.name;
+                                      });
+                                    },
+                              validator: (val) => val == null ? 'Please select a section.' : null,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Course Dropdown (Dependent on selected section)
                         StreamBuilder<QuerySnapshot>(
                           stream: _firestore.collection('courses').snapshots(),
                           builder: (context, snapshot) {
                             if (!snapshot.hasData) return const LinearProgressIndicator();
                             final docs = snapshot.data!.docs;
 
-                            // Filter courses by selected department
+                            // Filter courses by selected section
                             final filteredCourses = docs.where((doc) {
                               final data = doc.data() as Map<String, dynamic>;
-                              return data['departmentId'] == _selectedDeptId;
+                              return data['sectionId'] == _selectedSectionId;
                             }).toList();
 
                             return DropdownButtonFormField<String>(
-                              key: ValueKey(_selectedDeptId),
+                              key: ValueKey(_selectedSectionId),
                               initialValue: _selectedCourseId,
                               decoration: InputDecoration(
                                 labelText: 'Target Course',
                                 prefixIcon: const Icon(Icons.school_rounded, color: primaryBlue),
                                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                               ),
-                              disabledHint: const Text('Select a department first'),
-                              items: _selectedDeptId == null
+                              disabledHint: const Text('Select a section first'),
+                              items: _selectedSectionId == null
                                   ? null
                                   : filteredCourses.map((doc) {
                                       final data = doc.data() as Map<String, dynamic>;
@@ -147,53 +196,9 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                               onChanged: (val) {
                                 setState(() {
                                   _selectedCourseId = val;
-                                  _section = ''; // Clear section when course changes
                                 });
                               },
                               validator: (val) => val == null ? 'Please select a course.' : null,
-                            );
-                          },
-                        ),
-                        const SizedBox(height: 20),
-
-                        // Section Dropdown (Dependent on selected course)
-                        StreamBuilder<QuerySnapshot>(
-                          stream: _firestore.collection('sections').snapshots(),
-                          builder: (context, snapshot) {
-                            if (!snapshot.hasData) return const LinearProgressIndicator();
-                            final docs = snapshot.data!.docs;
-
-                            // Filter sections by selected course
-                            final filteredSections = docs.where((doc) {
-                              final data = doc.data() as Map<String, dynamic>;
-                              return data['courseId'] == _selectedCourseId;
-                            }).map((doc) => Section.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
-
-                            return DropdownButtonFormField<String>(
-                              key: ValueKey(_selectedCourseId),
-                              initialValue: _section.isEmpty ? null : _section,
-                              decoration: InputDecoration(
-                                labelText: 'Target Section',
-                                prefixIcon: const Icon(Icons.layers_rounded, color: primaryBlue),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                              ),
-                              disabledHint: const Text('Select a course first'),
-                              items: _selectedCourseId == null
-                                  ? null
-                                  : filteredSections.map((sec) {
-                                      return DropdownMenuItem(
-                                        value: sec.name,
-                                        child: Text(sec.name),
-                                      );
-                                    }).toList(),
-                              onChanged: _selectedCourseId == null
-                                  ? null
-                                  : (val) {
-                                      setState(() {
-                                        _section = val ?? '';
-                                      });
-                                    },
-                              validator: (val) => (val == null || val.isEmpty) ? 'Please select a section.' : null,
                             );
                           },
                         ),
