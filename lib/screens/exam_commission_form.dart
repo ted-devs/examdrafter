@@ -28,8 +28,8 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
 
   bool _isLoading = false;
 
-  static const primaryBlue = Color(0xFF1E3A8A);
-  static const accentBlue = Color(0xFF3B82F6);
+  static const primaryBlue = Color(0xFF1D4ED8);
+  static const accentBlue = Color(0xFF2563EB);
 
   @override
   Widget build(BuildContext context) {
@@ -40,45 +40,35 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
       appBar: AppBar(
         title: const Text(
           'Commission Exam Paper',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
-      body: Container(
-        color: const Color(0xFFF8FAFC),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 650),
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(color: Colors.grey.shade200),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(36.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          'Initiate Exam Request',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: primaryBlue,
-                            fontWeight: FontWeight.bold,
-                          ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(36.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Initiate Exam Request',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: primaryBlue,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Specify course, section quota, and deadline details. This request will be sent to the Section Committee.',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                        const SizedBox(height: 28),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Specify course, section quota, and deadline details. This request will be sent to the Section Committee.',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      ),
+                      const SizedBox(height: 28),
 
                         // Department Dropdown
                         StreamBuilder<QuerySnapshot>(
@@ -89,10 +79,9 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
 
                             return DropdownButtonFormField<String>(
                               initialValue: _selectedDeptId,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'Department',
-                                prefixIcon: const Icon(Icons.business_rounded, color: primaryBlue),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                prefixIcon: Icon(Icons.business_rounded, color: primaryBlue),
                               ),
                               items: docs.map((doc) {
                                 final data = doc.data() as Map<String, dynamic>;
@@ -131,10 +120,9 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                             return DropdownButtonFormField<String>(
                               key: ValueKey(_selectedDeptId),
                               initialValue: _selectedSectionId,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'Target Section',
-                                prefixIcon: const Icon(Icons.layers_rounded, color: primaryBlue),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                prefixIcon: Icon(Icons.layers_rounded, color: primaryBlue),
                               ),
                               disabledHint: const Text('Select a department first'),
                               items: _selectedDeptId == null
@@ -178,10 +166,9 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                             return DropdownButtonFormField<String>(
                               key: ValueKey(_selectedSectionId),
                               initialValue: _selectedCourseId,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'Target Course',
-                                prefixIcon: const Icon(Icons.school_rounded, color: primaryBlue),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                prefixIcon: Icon(Icons.school_rounded, color: primaryBlue),
                               ),
                               disabledHint: const Text('Select a section first'),
                               items: _selectedSectionId == null
@@ -263,25 +250,12 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                                 ? 'Pick Approval Deadline'
                                 : 'Deadline: ${_adminDeadline!.toLocal().toString().split(' ')[0]}',
                           ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            foregroundColor: primaryBlue,
-                            side: BorderSide(color: Colors.grey.shade300),
-                          ),
                         ),
                         const SizedBox(height: 36),
 
                         // Submit action
                         ElevatedButton(
                           onPressed: _isLoading ? null : _submitForm,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryBlue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 2,
-                          ),
                           child: _isLoading
                               ? const SizedBox(
                                   height: 20,
@@ -301,8 +275,7 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildDifficultyCounter(String label, int value, ValueChanged<int> onChanged) {

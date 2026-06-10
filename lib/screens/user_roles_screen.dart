@@ -13,8 +13,8 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   String _searchQuery = '';
 
-  static const primaryBlue = Color(0xFF1E3A8A);
-  static const accentBlue = Color(0xFF3B82F6);
+  static const primaryBlue = Color(0xFF1D4ED8);
+  static const accentBlue = Color(0xFF2563EB);
   static const lightBlueBg = Color(0xFFEFF6FF);
 
   @override
@@ -23,49 +23,35 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
       appBar: AppBar(
         title: const Text(
           'User Role Management',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
-      body: Container(
-        color: const Color(0xFFF8FAFC),
+      body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             // Search header
-            Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.grey.shade200),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    'Search Registered Users',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryBlue),
-                  ),
-                  const SizedBox(height: 12),
-                  TextField(
-                    onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
-                    decoration: InputDecoration(
-                      hintText: 'Search by email or name...',
-                      prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey),
-                      filled: true,
-                      fillColor: const Color(0xFFF1F5F9),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide.none,
-                      ),
-                      contentPadding: const EdgeInsets.symmetric(vertical: 14),
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(20),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Search Registered Users',
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: primaryBlue),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 12),
+                    TextField(
+                      onChanged: (val) => setState(() => _searchQuery = val.toLowerCase()),
+                      decoration: const InputDecoration(
+                        hintText: 'Search by email or name...',
+                        prefixIcon: Icon(Icons.search_rounded, color: Colors.grey),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
             const SizedBox(height: 24),
@@ -102,12 +88,6 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
                       final globalRole = user.roles['global'] ?? 'user';
 
                       return Card(
-                        color: Colors.white,
-                        elevation: 0,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                          side: BorderSide(color: Colors.grey.shade200),
-                        ),
                         child: Padding(
                           padding: const EdgeInsets.all(20.0),
                           child: Row(
@@ -174,12 +154,6 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
                                 onPressed: globalRole == 'super_admin'
                                     ? null
                                     : () => _showManageRolesDialog(user),
-                                style: ElevatedButton.styleFrom(
-                                  backgroundColor: primaryBlue,
-                                  foregroundColor: Colors.white,
-                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                                ),
                               ),
                             ],
                           ),
@@ -245,7 +219,7 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text('Manage Roles: ${user.displayName ?? user.email}'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               content: SizedBox(
                 width: 500,
                 child: SingleChildScrollView(
@@ -411,7 +385,6 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
 
                     if (context.mounted) Navigator.pop(context);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, foregroundColor: Colors.white),
                   child: const Text('Save Changes'),
                 ),
               ],

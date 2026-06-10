@@ -37,10 +37,10 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
   }
 
   // Define colors for the blue-and-white theme
-  static const primaryBlue = Color(0xFF1E3A8A); // Deep Blue
-  static const accentBlue = Color(0xFF3B82F6); // Vibrant Blue
+  static const primaryBlue = Color(0xFF1D4ED8); // Vibrant Blue
+  static const accentBlue = Color(0xFF2563EB); // Accent Blue
   static const lightBlueBg = Color(0xFFEFF6FF); // Light Blue Background
-  static const darkGrey = Color(0xFF374151);
+  static const darkGrey = Color(0xFF1E293B);
 
   @override
   Widget build(BuildContext context) {
@@ -50,36 +50,30 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
       appBar: AppBar(
         title: const Text(
           'Taxonomy & Hierarchy Management',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
+          labelColor: primaryBlue,
+          unselectedLabelColor: const Color(0xFF64748B),
+          indicatorColor: primaryBlue,
           indicatorWeight: 3,
           tabs: const [
             Tab(icon: Icon(Icons.business_rounded), text: 'Departments'),
+            Tab(icon: Icon(Icons.layers_rounded), text: 'Sections'),
             Tab(icon: Icon(Icons.school_rounded), text: 'Courses'),
             Tab(icon: Icon(Icons.topic_rounded), text: 'Topics'),
-            Tab(icon: Icon(Icons.layers_rounded), text: 'Sections'),
           ],
         ),
       ),
-      body: Container(
-        color: const Color(0xFFF8FAFC),
-        child: TabBarView(
-          controller: _tabController,
-          children: [
-            _buildDepartmentsTab(theme),
-            _buildCoursesTab(theme),
-            _buildTopicsTab(theme),
-            _buildSectionsTab(theme),
-          ],
-        ),
+      body: TabBarView(
+        controller: _tabController,
+        children: [
+          _buildDepartmentsTab(theme),
+          _buildSectionsTab(theme),
+          _buildCoursesTab(theme),
+          _buildTopicsTab(theme),
+        ],
       ),
     );
   }
@@ -129,17 +123,16 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                     final isSelected = _selectedDepartmentId == dept.id;
 
                     return Card(
-                      color: isSelected ? lightBlueBg : Colors.white,
-                      elevation: 0,
+                      color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                         side: BorderSide(
-                          color: isSelected ? accentBlue : Colors.grey.shade200,
+                          color: isSelected ? primaryBlue : Colors.blueGrey.shade100.withValues(alpha: 0.5),
                           width: isSelected ? 2 : 1,
                         ),
                       ),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                         onTap: () {
                           setState(() {
                             _selectedDepartmentId = isSelected ? null : dept.id;
@@ -160,7 +153,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: isSelected ? accentBlue.withValues(alpha: 0.15) : Colors.grey.shade100,
+                                      color: isSelected ? primaryBlue.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
@@ -275,17 +268,16 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                     final isSelected = _selectedCourseId == course.id;
 
                     return Card(
-                      color: isSelected ? lightBlueBg : Colors.white,
-                      elevation: 0,
+                      color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                         side: BorderSide(
-                          color: isSelected ? accentBlue : Colors.grey.shade200,
+                          color: isSelected ? primaryBlue : Colors.blueGrey.shade100.withValues(alpha: 0.5),
                           width: isSelected ? 2 : 1,
                         ),
                       ),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                         onTap: () {
                           setState(() {
                             _selectedCourseId = isSelected ? null : course.id;
@@ -302,7 +294,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
                                     decoration: BoxDecoration(
-                                      color: isSelected ? accentBlue.withValues(alpha: 0.15) : Colors.grey.shade100,
+                                      color: isSelected ? primaryBlue.withValues(alpha: 0.12) : const Color(0xFFF1F5F9),
                                       borderRadius: BorderRadius.circular(8),
                                     ),
                                     child: Text(
@@ -434,10 +426,9 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
 
                     return Card(
                       color: Colors.white,
-                      elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        side: BorderSide(color: Colors.grey.shade200),
+                        borderRadius: BorderRadius.circular(24),
+                        side: BorderSide(color: Colors.blueGrey.shade100.withValues(alpha: 0.5)),
                       ),
                       child: Padding(
                         padding: const EdgeInsets.all(20.0),
@@ -533,89 +524,76 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
     bool filterActive = false,
     VoidCallback? onClearFilter,
   }) {
-    return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    title,
-                    style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primaryBlue),
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: primaryBlue),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                      ),
+                    ],
                   ),
-                  const SizedBox(height: 4),
-                  Text(
-                    subtitle,
-                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
-                  ),
-                ],
-              ),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.add, size: 18),
-                label: Text(buttonText),
-                onPressed: onButtonPressed,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: primaryBlue,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+                ),
+                const SizedBox(width: 16),
+                ElevatedButton.icon(
+                  icon: const Icon(Icons.add, size: 18),
+                  label: Text(buttonText),
+                  onPressed: onButtonPressed,
+                ),
+              ],
+            ),
+            if (filterActive) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: orangeAccent.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: orangeAccent.withValues(alpha: 0.3)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.filter_alt_rounded, size: 16, color: orangeAccent),
+                    const SizedBox(width: 8),
+                    const Text(
+                      'Active parent filter applied',
+                      style: TextStyle(fontSize: 13, color: orangeAccent, fontWeight: FontWeight.bold),
+                    ),
+                    const SizedBox(width: 8),
+                    InkWell(
+                      onTap: onClearFilter,
+                      child: const Icon(Icons.cancel_rounded, size: 16, color: orangeAccent),
+                    )
+                  ],
                 ),
               ),
             ],
-          ),
-          if (filterActive) ...[
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-              decoration: BoxDecoration(
-                color: orangeAccent.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: orangeAccent.withValues(alpha: 0.3)),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  const Icon(Icons.filter_alt_rounded, size: 16, color: orangeAccent),
-                  const SizedBox(width: 8),
-                  const Text(
-                    'Active parent filter applied',
-                    style: TextStyle(fontSize: 13, color: orangeAccent, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(width: 8),
-                  InkWell(
-                    onTap: onClearFilter,
-                    child: const Icon(Icons.cancel_rounded, size: 16, color: orangeAccent),
-                  )
-                ],
+            const SizedBox(height: 20),
+            TextField(
+              onChanged: onSearchChanged,
+              decoration: const InputDecoration(
+                hintText: 'Search by keyword...',
+                prefixIcon: Icon(Icons.search_rounded, color: Colors.grey),
               ),
             ),
           ],
-          const SizedBox(height: 20),
-          TextField(
-            onChanged: onSearchChanged,
-            decoration: InputDecoration(
-              hintText: 'Search by keyword...',
-              prefixIcon: const Icon(Icons.search_rounded, color: Colors.grey),
-              filled: true,
-              fillColor: const Color(0xFFF1F5F9),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-                borderSide: BorderSide.none,
-              ),
-              contentPadding: const EdgeInsets.symmetric(vertical: 14),
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
@@ -660,7 +638,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
       builder: (context) {
         return AlertDialog(
           title: Text(isEdit ? 'Edit Department' : 'Create Department'),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -701,7 +679,6 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                 }
                 if (context.mounted) Navigator.pop(context);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, foregroundColor: Colors.white),
               child: Text(isEdit ? 'Save Changes' : 'Create'),
             ),
           ],
@@ -724,7 +701,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(isEdit ? 'Edit Course' : 'Create Course'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -792,7 +769,6 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                     }
                     if (context.mounted) Navigator.pop(context);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, foregroundColor: Colors.white),
                   child: Text(isEdit ? 'Save Changes' : 'Create'),
                 ),
               ],
@@ -819,7 +795,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(isEdit ? 'Edit Topic' : 'Create Topic'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               content: SizedBox(
                 width: 480,
                 child: Column(
@@ -838,10 +814,11 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                     const SizedBox(height: 8),
                     // Show a scrollable checklist of courses
                     Container(
-                      height: 160,
+                      height: 180,
                       decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade300),
-                        borderRadius: BorderRadius.circular(8),
+                        color: const Color(0xFFF8FAFC),
+                        border: Border.all(color: Colors.blueGrey.shade100),
+                        borderRadius: BorderRadius.circular(16),
                       ),
                       child: StreamBuilder<QuerySnapshot>(
                         stream: _firestore.collection('courses').snapshots(),
@@ -864,6 +841,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                                 title: Text('$cCode - $cName', style: const TextStyle(fontSize: 13)),
                                 value: checked,
                                 dense: true,
+                                activeColor: primaryBlue,
                                 controlAffinity: ListTileControlAffinity.leading,
                                 onChanged: (val) {
                                   setDialogState(() {
@@ -907,7 +885,6 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                     }
                     if (context.mounted) Navigator.pop(context);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, foregroundColor: Colors.white),
                   child: Text(isEdit ? 'Save Changes' : 'Create'),
                 ),
               ],
@@ -975,17 +952,16 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                     final isSelected = _selectedSectionId == section.id;
 
                     return Card(
-                      color: isSelected ? lightBlueBg : Colors.white,
-                      elevation: 0,
+                      color: isSelected ? const Color(0xFFEFF6FF) : Colors.white,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                         side: BorderSide(
-                          color: isSelected ? accentBlue : Colors.grey.shade200,
+                          color: isSelected ? primaryBlue : Colors.blueGrey.shade100.withValues(alpha: 0.5),
                           width: isSelected ? 2 : 1,
                         ),
                       ),
                       child: InkWell(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(24),
                         onTap: () {
                           setState(() {
                             _selectedSectionId = isSelected ? null : section.id;
@@ -1080,7 +1056,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
           builder: (context, setDialogState) {
             return AlertDialog(
               title: Text(isEdit ? 'Edit Section' : 'Create Section'),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
               content: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
@@ -1140,7 +1116,6 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                     }
                     if (context.mounted) Navigator.pop(context);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, foregroundColor: Colors.white),
                   child: Text(isEdit ? 'Save Changes' : 'Create'),
                 ),
               ],
@@ -1163,7 +1138,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
         return AlertDialog(
           title: Text(title, style: const TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold)),
           content: Text(content),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(context),
@@ -1174,7 +1149,11 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                 onConfirm();
                 Navigator.pop(context);
               },
-              style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent, foregroundColor: Colors.white),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              ),
               child: const Text('Delete'),
             ),
           ],
