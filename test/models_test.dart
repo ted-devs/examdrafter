@@ -6,7 +6,6 @@ import 'package:examdrafter/models/question.dart';
 import 'package:examdrafter/models/exam_request.dart';
 import 'package:examdrafter/models/exam_curation.dart';
 
-// Mock class to handle native Firebase Core channel bindings if needed in tests
 class TestBindings {
   static void setup() {
     TestWidgetsFlutterBinding.ensureInitialized();
@@ -126,14 +125,18 @@ void main() {
     test('fromMap and toMap logic works', () {
       final now = Timestamp.now();
       final data = {
-        'text': 'What is recursion?',
-        'options': ['Looping', 'Function calling itself', 'Data structure', 'Sorting'],
-        'correctOptionIndex': 1,
-        'difficulty': 'medium',
-        'topicIds': ['topic_1', 'topic_2'],
+        'sourceDraftId': 'draft_99',
+        'version': 1,
+        'questionText': 'What is recursion?',
+        'options': [
+          {'text': 'Looping', 'isCorrect': false},
+          {'text': 'Function calling itself', 'isCorrect': true},
+        ],
+        'topics': ['topic_1', 'topic_2'],
+        'difficulty': 'Medium',
         'courseId': 'cs_101',
         'authorUid': 'teacher_abc',
-        'version': 1,
+        'errorDoNotUse': false,
         'status': 'submitted',
         'createdAt': now,
         'updatedAt': now,
@@ -141,45 +144,52 @@ void main() {
 
       final q = Question.fromMap(data, 'q_123');
       expect(q.id, 'q_123');
-      expect(q.difficulty, QuestionDifficulty.medium);
-      expect(q.status, QuestionStatus.submitted);
-      expect(q.options[1], 'Function calling itself');
+      expect(q.sourceDraftId, 'draft_99');
+      expect(q.difficulty, 'Medium');
+      expect(q.status, 'submitted');
+      expect(q.options[1].text, 'Function calling itself');
+      expect(q.options[1].isCorrect, true);
 
       final map = q.toMap();
-      expect(map['difficulty'], 'medium');
+      expect(map['difficulty'], 'Medium');
       expect(map['status'], 'submitted');
-      expect(map['correctOptionIndex'], 1);
+      expect(map['options'][1]['text'], 'Function calling itself');
+      expect(map['options'][1]['isCorrect'], true);
     });
 
     test('copyWithNewVersion increments version and retains author', () {
       final now = DateTime.now();
       final orig = Question(
         id: 'q_orig',
-        text: 'Original Text',
-        options: ['A', 'B'],
-        correctOptionIndex: 0,
-        difficulty: QuestionDifficulty.easy,
-        topicIds: ['topic_1'],
+        sourceDraftId: 'draft_99',
+        version: 1,
+        questionText: 'Original Text',
+        options: [
+          Option(text: 'A', isCorrect: true),
+          Option(text: 'B', isCorrect: false),
+        ],
+        topics: ['topic_1'],
+        difficulty: 'Easy',
         courseId: 'cs_101',
         authorUid: 'teacher_abc',
-        version: 1,
-        status: QuestionStatus.approved,
+        errorDoNotUse: false,
+        status: 'approved',
         createdAt: now,
         updatedAt: now,
       );
 
       final next = orig.copyWithNewVersion(
-        newText: 'Updated Text',
-        newStatus: QuestionStatus.draft,
-        newReplacedById: 'q_orig',
+        newQuestionText: 'Updated Text',
+        newStatus: 'draft',
+        newPreviousVersionId: 'q_orig',
       );
 
       expect(next.id, ''); // ID is reset to represent a new document
-      expect(next.text, 'Updated Text');
+      expect(next.questionText, 'Updated Text');
       expect(next.version, 2);
-      expect(next.status, QuestionStatus.draft);
+      expect(next.status, 'draft');
       expect(next.authorUid, 'teacher_abc');
-      expect(next.replacedById, 'q_orig');
+      expect(next.previousVersionId, 'q_orig');
     });
   });
 

@@ -1,63 +1,58 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum QuestionDifficulty {
-  easy,
-  medium,
-  hard;
+class Option {
+  final String text;
+  final bool isCorrect;
 
-  String toJson() => name;
+  Option({
+    required this.text,
+    this.isCorrect = false,
+  });
 
-  static QuestionDifficulty fromJson(String value) {
-    return QuestionDifficulty.values.firstWhere(
-      (e) => e.name == value.toLowerCase(),
-      orElse: () => QuestionDifficulty.easy,
+  factory Option.fromMap(Map<String, dynamic> map) {
+    return Option(
+      text: map['text'] ?? '',
+      isCorrect: map['isCorrect'] ?? false,
     );
   }
-}
 
-enum QuestionStatus {
-  draft,
-  submitted,
-  approved,
-  deprecated;
-
-  String toJson() => name;
-
-  static QuestionStatus fromJson(String value) {
-    return QuestionStatus.values.firstWhere(
-      (e) => e.name == value.toLowerCase(),
-      orElse: () => QuestionStatus.draft,
-    );
+  Map<String, dynamic> toMap() {
+    return {
+      'text': text,
+      'isCorrect': isCorrect,
+    };
   }
 }
 
 class Question {
   final String id;
-  final String text;
-  final List<String> options;
-  final int correctOptionIndex;
-  final QuestionDifficulty difficulty;
-  final List<String> topicIds;
+  final String sourceDraftId;
+  final int version;
+  final String questionText;
+  final List<Option> options;
+  final List<String> topics;
+  final String difficulty; // 'Easy' | 'Medium' | 'Hard'
   final String courseId;
   final String authorUid;
-  final int version;
-  final QuestionStatus status;
-  final String? replacedById;
+  final bool errorDoNotUse;
+  final String? previousVersionId;
+  final String status; // 'draft' | 'submitted' | 'approved' | 'deprecated'
   final DateTime createdAt;
   final DateTime updatedAt;
 
   Question({
     required this.id,
-    required this.text,
+    required this.sourceDraftId,
+    required this.version,
+    required this.questionText,
     required this.options,
-    required this.correctOptionIndex,
+    required this.topics,
     required this.difficulty,
-    required this.topicIds,
     required this.courseId,
     required this.authorUid,
-    required this.version,
+    this.errorDoNotUse = false,
+    this.previousVersionId,
     required this.status,
-    this.replacedById,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -73,33 +68,38 @@ class Question {
     }
 
     final rawOptions = data['options'];
-    final List<String> parsedOptions = [];
+    final List<Option> parsedOptions = [];
     if (rawOptions is List) {
       for (final item in rawOptions) {
-        parsedOptions.add(item.toString());
+        if (item is Map<String, dynamic>) {
+          parsedOptions.add(Option.fromMap(item));
+        } else if (item is Map) {
+          parsedOptions.add(Option.fromMap(Map<String, dynamic>.from(item)));
+        }
       }
     }
 
-    final rawTopicIds = data['topicIds'];
-    final List<String> parsedTopicIds = [];
-    if (rawTopicIds is List) {
-      for (final item in rawTopicIds) {
-        parsedTopicIds.add(item.toString());
+    final rawTopics = data['topics'];
+    final List<String> parsedTopics = [];
+    if (rawTopics is List) {
+      for (final item in rawTopics) {
+        parsedTopics.add(item.toString());
       }
     }
 
     return Question(
       id: id,
-      text: data['text'] ?? '',
+      sourceDraftId: data['sourceDraftId'] ?? '',
+      version: data['version'] ?? 1,
+      questionText: data['questionText'] ?? '',
       options: parsedOptions,
-      correctOptionIndex: data['correctOptionIndex'] ?? 0,
-      difficulty: QuestionDifficulty.fromJson(data['difficulty'] ?? 'easy'),
-      topicIds: parsedTopicIds,
+      topics: parsedTopics,
+      difficulty: data['difficulty'] ?? 'Medium',
       courseId: data['courseId'] ?? '',
       authorUid: data['authorUid'] ?? '',
-      version: data['version'] ?? 1,
-      status: QuestionStatus.fromJson(data['status'] ?? 'draft'),
-      replacedById: data['replacedById'],
+      errorDoNotUse: data['errorDoNotUse'] ?? false,
+      previousVersionId: data['previousVersionId'],
+      status: data['status'] ?? 'draft',
       createdAt: parseDateTime(data['createdAt']),
       updatedAt: parseDateTime(data['updatedAt']),
     );
@@ -107,16 +107,17 @@ class Question {
 
   Map<String, dynamic> toMap() {
     return {
-      'text': text,
-      'options': options,
-      'correctOptionIndex': correctOptionIndex,
-      'difficulty': difficulty.toJson(),
-      'topicIds': topicIds,
+      'sourceDraftId': sourceDraftId,
+      'version': version,
+      'questionText': questionText,
+      'options': options.map((o) => o.toMap()).toList(),
+      'topics': topics,
+      'difficulty': difficulty,
       'courseId': courseId,
       'authorUid': authorUid,
-      'version': version,
-      'status': status.toJson(),
-      if (replacedById != null) 'replacedById': replacedById,
+      'errorDoNotUse': errorDoNotUse,
+      if (previousVersionId != null) 'previousVersionId': previousVersionId,
+      'status': status,
       'createdAt': Timestamp.fromDate(createdAt),
       'updatedAt': Timestamp.fromDate(updatedAt),
     };
@@ -124,26 +125,27 @@ class Question {
 
   /// Helper to create a new version of this question.
   Question copyWithNewVersion({
-    String? newText,
-    List<String>? newOptions,
-    int? newCorrectOptionIndex,
-    QuestionDifficulty? newDifficulty,
-    List<String>? newTopicIds,
-    QuestionStatus? newStatus,
-    String? newReplacedById,
+    String? newQuestionText,
+    List<Option>? newOptions,
+    String? newDifficulty,
+    List<String>? newTopics,
+    String? newStatus,
+    bool? newErrorDoNotUse,
+    String? newPreviousVersionId,
   }) {
     return Question(
-      id: '', // New document will get a new ID from Firestore
-      text: newText ?? text,
-      options: newOptions ?? List.from(options),
-      correctOptionIndex: newCorrectOptionIndex ?? correctOptionIndex,
+      id: '', // New document gets a new ID in Firestore
+      sourceDraftId: sourceDraftId,
+      version: version + 1,
+      questionText: newQuestionText ?? questionText,
+      options: newOptions ?? options.map((o) => Option(text: o.text, isCorrect: o.isCorrect)).toList(),
+      topics: newTopics ?? List.from(topics),
       difficulty: newDifficulty ?? difficulty,
-      topicIds: newTopicIds ?? List.from(topicIds),
       courseId: courseId,
       authorUid: authorUid,
-      version: version + 1,
-      status: newStatus ?? QuestionStatus.draft,
-      replacedById: newReplacedById,
+      errorDoNotUse: newErrorDoNotUse ?? errorDoNotUse,
+      previousVersionId: newPreviousVersionId ?? id,
+      status: newStatus ?? 'draft',
       createdAt: createdAt,
       updatedAt: DateTime.now(),
     );
