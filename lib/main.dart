@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'screens/login_page.dart';
@@ -77,90 +79,115 @@ class _MyHomePageState extends State<MyHomePage> {
         ],
       ),
       drawer: Drawer(
-        child: ListView(
-          padding: EdgeInsets.zero,
-          children: [
-            const DrawerHeader(
-              decoration: BoxDecoration(color: Color(0xFF1E3A8A)),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text(
-                    'Exam Drafter',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
+        child: StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
+              .collection('users')
+              .doc(AuthService().currentUser?.uid ?? 'unknown')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            final data = snapshot.data?.data() as Map<String, dynamic>?;
+            final roles = data?['roles'] as Map<String, dynamic>? ?? {};
+            final globalRole = roles['global'] ?? 'user';
+
+            final isSuperAdmin = globalRole == 'super_admin';
+            final isAdmin = globalRole == 'admin';
+            final isAnyAdmin = isSuperAdmin || isAdmin;
+
+            return ListView(
+              padding: EdgeInsets.zero,
+              children: [
+                DrawerHeader(
+                  decoration: const BoxDecoration(color: Color(0xFF1E3A8A)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      const Text(
+                        'Exam Drafter',
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 24,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        isSuperAdmin
+                            ? 'Super Admin Panel'
+                            : (isAdmin ? 'Admin Panel' : 'User Portal'),
+                        style: const TextStyle(color: Colors.white70, fontSize: 14),
+                      ),
+                    ],
+                  ),
+                ),
+                ListTile(
+                  leading: const Icon(
+                    Icons.dashboard_rounded,
+                    color: Color(0xFF1E3A8A),
+                  ),
+                  title: const Text('Dashboard'),
+                  onTap: () {
+                    Navigator.pop(context);
+                  },
+                ),
+                if (isSuperAdmin)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.business_rounded,
+                      color: Color(0xFF1E3A8A),
                     ),
+                    title: const Text('Taxonomy Management'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const TaxonomyManagementScreen(),
+                        ),
+                      );
+                    },
                   ),
-                  SizedBox(height: 4),
-                  Text(
-                    'Super Admin Panel',
-                    style: TextStyle(color: Colors.white70, fontSize: 14),
+                if (isAnyAdmin)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.shield_rounded,
+                      color: Color(0xFF1E3A8A),
+                    ),
+                    title: const Text('User Role Management'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const UserRolesScreen(),
+                        ),
+                      );
+                    },
                   ),
-                ],
-              ),
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.dashboard_rounded,
-                color: Color(0xFF1E3A8A),
-              ),
-              title: const Text('Dashboard'),
-              onTap: () {
-                Navigator.pop(context);
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.business_rounded,
-                color: Color(0xFF1E3A8A),
-              ),
-              title: const Text('Taxonomy Management'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const TaxonomyManagementScreen(),
+                if (isAnyAdmin)
+                  ListTile(
+                    leading: const Icon(
+                      Icons.assignment_rounded,
+                      color: Color(0xFF1E3A8A),
+                    ),
+                    title: const Text('Commission Exam'),
+                    onTap: () {
+                      Navigator.pop(context);
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ExamCommissionForm(),
+                        ),
+                      );
+                    },
                   ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.shield_rounded,
-                color: Color(0xFF1E3A8A),
-              ),
-              title: const Text('User Role Management'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const UserRolesScreen(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(
-                Icons.assignment_rounded,
-                color: Color(0xFF1E3A8A),
-              ),
-              title: const Text('Commission Exam'),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const ExamCommissionForm(),
-                  ),
-                );
-              },
-            ),
-          ],
+              ],
+            );
+          },
         ),
       ),
       body: Container(
@@ -289,7 +316,7 @@ class AuthWrapper extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder(
+    return StreamBuilder<User?>(
       stream: AuthService().authStateChanges,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -297,11 +324,31 @@ class AuthWrapper extends StatelessWidget {
             body: Center(child: CircularProgressIndicator()),
           );
         }
-        if (snapshot.hasData) {
+        if (snapshot.hasData && snapshot.data != null) {
+          _ensureUserDocumentExists(snapshot.data!);
           return const MyHomePage(title: 'Exam Drafter Dashboard');
         }
         return const LoginPage();
       },
     );
+  }
+
+  void _ensureUserDocumentExists(User user) async {
+    try {
+      final docRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+      final doc = await docRef.get();
+      if (!doc.exists) {
+        await docRef.set({
+          'email': user.email ?? '',
+          'displayName': user.displayName ?? (user.email ?? 'User').split('@')[0],
+          'createdAt': FieldValue.serverTimestamp(),
+          'roles': {
+            'global': 'user',
+          },
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      debugPrint('Error ensuring user document exists: $e');
+    }
   }
 }

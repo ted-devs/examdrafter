@@ -218,8 +218,9 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
           ),
           const SizedBox(height: 8),
           Text(
-            'Ensure users register an account before managing their roles.',
+            'Ensure users register and log in at least once to populate their profile documents.',
             style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+            textAlign: TextAlign.center,
           ),
         ],
       ),
