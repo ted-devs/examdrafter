@@ -85,7 +85,7 @@ void main() {
     test('Course serialization', () {
       final now = Timestamp.now();
       final data = {
-        'departmentId': 'cs_dept',
+        'sectionId': 'sec_a',
         'name': 'Introduction to OOP',
         'code': 'CS102',
         'createdAt': now,
@@ -93,11 +93,11 @@ void main() {
 
       final course = Course.fromMap(data, 'cs_102');
       expect(course.id, 'cs_102');
-      expect(course.departmentId, 'cs_dept');
+      expect(course.sectionId, 'sec_a');
       expect(course.code, 'CS102');
 
       final map = course.toMap();
-      expect(map['departmentId'], 'cs_dept');
+      expect(map['sectionId'], 'sec_a');
       expect(map['code'], 'CS102');
     });
 
@@ -118,6 +118,24 @@ void main() {
       expect(map['name'], 'Recursion');
       expect(map['courseIds'], isA<List>());
       expect(map['courseIds'], contains('cs_102'));
+    });
+
+    test('Section serialization', () {
+      final now = Timestamp.now();
+      final data = {
+        'departmentId': 'cs_dept',
+        'name': 'Section A',
+        'createdAt': now,
+      };
+
+      final section = Section.fromMap(data, 'sec_a');
+      expect(section.id, 'sec_a');
+      expect(section.departmentId, 'cs_dept');
+      expect(section.name, 'Section A');
+
+      final map = section.toMap();
+      expect(map['departmentId'], 'cs_dept');
+      expect(map['name'], 'Section A');
     });
   });
 

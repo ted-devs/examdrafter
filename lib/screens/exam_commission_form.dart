@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exam_request.dart';
+import '../models/taxonomy.dart';
 import '../services/auth_service.dart';
 
 class ExamCommissionForm extends StatefulWidget {
@@ -17,6 +18,7 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
   // Form inputs
   String _section = '';
   String? _selectedDeptId;
+  String? _selectedSectionId;
   String? _selectedCourseId;
   DateTime? _adminDeadline;
 
@@ -26,8 +28,8 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
 
   bool _isLoading = false;
 
-  static const primaryBlue = Color(0xFF1E3A8A);
-  static const accentBlue = Color(0xFF3B82F6);
+  static const primaryBlue = Color(0xFF1D4ED8);
+  static const accentBlue = Color(0xFF2563EB);
 
   @override
   Widget build(BuildContext context) {
@@ -38,63 +40,35 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
       appBar: AppBar(
         title: const Text(
           'Commission Exam Paper',
-          style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white),
+          style: TextStyle(fontWeight: FontWeight.bold),
         ),
-        backgroundColor: primaryBlue,
-        foregroundColor: Colors.white,
-        elevation: 0,
       ),
-      body: Container(
-        color: const Color(0xFFF8FAFC),
-        child: Center(
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(24.0),
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 650),
-              child: Card(
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                  side: BorderSide(color: Colors.grey.shade200),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(36.0),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          'Initiate Exam Request',
-                          style: theme.textTheme.headlineSmall?.copyWith(
-                            color: primaryBlue,
-                            fontWeight: FontWeight.bold,
-                          ),
+      body: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24.0),
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 650),
+            child: Card(
+              child: Padding(
+                padding: const EdgeInsets.all(36.0),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      Text(
+                        'Initiate Exam Request',
+                        style: theme.textTheme.headlineSmall?.copyWith(
+                          color: primaryBlue,
+                          fontWeight: FontWeight.bold,
                         ),
-                        const SizedBox(height: 8),
-                        Text(
-                          'Specify course, section quota, and deadline details. This request will be sent to the Section Committee.',
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                        ),
-                        const SizedBox(height: 28),
-
-                        // Section input
-                        TextFormField(
-                          decoration: InputDecoration(
-                            labelText: 'Target Section',
-                            hintText: 'e.g. Section A, Fall Semester',
-                            prefixIcon: const Icon(Icons.class_rounded, color: primaryBlue),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter the target section.';
-                            }
-                            return null;
-                          },
-                          onSaved: (val) => _section = val?.trim() ?? '',
-                        ),
-                        const SizedBox(height: 20),
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                        'Specify course, section quota, and deadline details. This request will be sent to the Section Committee.',
+                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      ),
+                      const SizedBox(height: 28),
 
                         // Department Dropdown
                         StreamBuilder<QuerySnapshot>(
@@ -105,10 +79,9 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
 
                             return DropdownButtonFormField<String>(
                               initialValue: _selectedDeptId,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'Department',
-                                prefixIcon: const Icon(Icons.business_rounded, color: primaryBlue),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                prefixIcon: Icon(Icons.business_rounded, color: primaryBlue),
                               ),
                               items: docs.map((doc) {
                                 final data = doc.data() as Map<String, dynamic>;
@@ -120,7 +93,9 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                               onChanged: (val) {
                                 setState(() {
                                   _selectedDeptId = val;
-                                  _selectedCourseId = null; // Clear child course when dept changes
+                                  _selectedSectionId = null; // Clear section when dept changes
+                                  _selectedCourseId = null; // Clear course when dept changes
+                                  _section = ''; // Clear section name when dept changes
                                 });
                               },
                               validator: (val) => val == null ? 'Please select a department.' : null,
@@ -129,28 +104,74 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                         ),
                         const SizedBox(height: 20),
 
-                        // Course Dropdown (Dependent on selected department)
+                        // Section Dropdown (Dependent on selected department)
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _firestore.collection('sections').snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const LinearProgressIndicator();
+                            final docs = snapshot.data!.docs;
+
+                            // Filter sections by selected department
+                            final filteredSections = docs.where((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              return data['departmentId'] == _selectedDeptId;
+                            }).map((doc) => Section.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+
+                            return DropdownButtonFormField<String>(
+                              key: ValueKey(_selectedDeptId),
+                              initialValue: _selectedSectionId,
+                              decoration: const InputDecoration(
+                                labelText: 'Target Section',
+                                prefixIcon: Icon(Icons.layers_rounded, color: primaryBlue),
+                              ),
+                              disabledHint: const Text('Select a department first'),
+                              items: _selectedDeptId == null
+                                  ? null
+                                  : filteredSections.map((sec) {
+                                      return DropdownMenuItem(
+                                        value: sec.id,
+                                        child: Text(sec.name),
+                                      );
+                                    }).toList(),
+                              onChanged: _selectedDeptId == null
+                                  ? null
+                                  : (val) {
+                                      setState(() {
+                                        _selectedSectionId = val;
+                                        _selectedCourseId = null; // Clear course when section changes
+                                        // Retrieve section name for the request
+                                        final secDoc = filteredSections.firstWhere((s) => s.id == val);
+                                        _section = secDoc.name;
+                                      });
+                                    },
+                              validator: (val) => val == null ? 'Please select a section.' : null,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Course Dropdown (Dependent on selected section)
                         StreamBuilder<QuerySnapshot>(
                           stream: _firestore.collection('courses').snapshots(),
                           builder: (context, snapshot) {
                             if (!snapshot.hasData) return const LinearProgressIndicator();
                             final docs = snapshot.data!.docs;
 
-                            // Filter courses by selected department
+                            // Filter courses by selected section
                             final filteredCourses = docs.where((doc) {
                               final data = doc.data() as Map<String, dynamic>;
-                              return data['departmentId'] == _selectedDeptId;
+                              return data['sectionId'] == _selectedSectionId;
                             }).toList();
 
                             return DropdownButtonFormField<String>(
+                              key: ValueKey(_selectedSectionId),
                               initialValue: _selectedCourseId,
-                              decoration: InputDecoration(
+                              decoration: const InputDecoration(
                                 labelText: 'Target Course',
-                                prefixIcon: const Icon(Icons.school_rounded, color: primaryBlue),
-                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                                prefixIcon: Icon(Icons.school_rounded, color: primaryBlue),
                               ),
-                              disabledHint: const Text('Select a department first'),
-                              items: _selectedDeptId == null
+                              disabledHint: const Text('Select a section first'),
+                              items: _selectedSectionId == null
                                   ? null
                                   : filteredCourses.map((doc) {
                                       final data = doc.data() as Map<String, dynamic>;
@@ -229,25 +250,12 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                                 ? 'Pick Approval Deadline'
                                 : 'Deadline: ${_adminDeadline!.toLocal().toString().split(' ')[0]}',
                           ),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            foregroundColor: primaryBlue,
-                            side: BorderSide(color: Colors.grey.shade300),
-                          ),
                         ),
                         const SizedBox(height: 36),
 
                         // Submit action
                         ElevatedButton(
                           onPressed: _isLoading ? null : _submitForm,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: primaryBlue,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 18),
-                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                            elevation: 2,
-                          ),
                           child: _isLoading
                               ? const SizedBox(
                                   height: 20,
@@ -267,8 +275,7 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
             ),
           ),
         ),
-      ),
-    );
+      );
   }
 
   Widget _buildDifficultyCounter(String label, int value, ValueChanged<int> onChanged) {

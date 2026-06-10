@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 abstract class BaseAuthService {
   Stream<User?> get authStateChanges;
@@ -38,10 +39,23 @@ class AuthService implements BaseAuthService {
   @override
   Future<UserCredential> signUpWithEmail(String email, String password) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
       );
+
+      if (credential.user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(credential.user!.uid).set({
+          'email': email.trim(),
+          'displayName': credential.user!.displayName ?? email.trim().split('@')[0],
+          'createdAt': FieldValue.serverTimestamp(),
+          'roles': {
+            'global': 'user',
+          },
+        }, SetOptions(merge: true));
+      }
+
+      return credential;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {

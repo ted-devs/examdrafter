@@ -43,14 +43,14 @@ class Department {
 
 class Course {
   final String id;
-  final String departmentId;
+  final String sectionId;
   final String name;
   final String code;
   final DateTime createdAt;
 
   Course({
     required this.id,
-    required this.departmentId,
+    required this.sectionId,
     required this.name,
     required this.code,
     required this.createdAt,
@@ -69,7 +69,7 @@ class Course {
 
     return Course(
       id: id,
-      departmentId: data['departmentId'] ?? '',
+      sectionId: data['sectionId'] ?? '',
       name: data['name'] ?? '',
       code: data['code'] ?? '',
       createdAt: parsedCreatedAt,
@@ -78,7 +78,7 @@ class Course {
 
   Map<String, dynamic> toMap() {
     return {
-      'departmentId': departmentId,
+      'sectionId': sectionId,
       'name': name,
       'code': code,
       'createdAt': Timestamp.fromDate(createdAt),
@@ -130,6 +130,47 @@ class Topic {
     return {
       'name': name,
       'courseIds': courseIds,
+      'createdAt': Timestamp.fromDate(createdAt),
+    };
+  }
+}
+
+class Section {
+  final String id;
+  final String departmentId;
+  final String name;
+  final DateTime createdAt;
+
+  Section({
+    required this.id,
+    required this.departmentId,
+    required this.name,
+    required this.createdAt,
+  });
+
+  factory Section.fromMap(Map<String, dynamic> data, String id) {
+    DateTime parsedCreatedAt;
+    final rawCreatedAt = data['createdAt'];
+    if (rawCreatedAt is Timestamp) {
+      parsedCreatedAt = rawCreatedAt.toDate();
+    } else if (rawCreatedAt is String) {
+      parsedCreatedAt = DateTime.parse(rawCreatedAt);
+    } else {
+      parsedCreatedAt = DateTime.now();
+    }
+
+    return Section(
+      id: id,
+      departmentId: data['departmentId'] ?? '',
+      name: data['name'] ?? '',
+      createdAt: parsedCreatedAt,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'departmentId': departmentId,
+      'name': name,
       'createdAt': Timestamp.fromDate(createdAt),
     };
   }
