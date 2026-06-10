@@ -171,7 +171,9 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
                               ElevatedButton.icon(
                                 icon: const Icon(Icons.shield_rounded, size: 16),
                                 label: const Text('Manage Roles'),
-                                onPressed: () => _showManageRolesDialog(user),
+                                onPressed: globalRole == 'super_admin'
+                                    ? null
+                                    : () => _showManageRolesDialog(user),
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: primaryBlue,
                                   foregroundColor: Colors.white,
@@ -276,50 +278,47 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Add course-specific role controls
+                      // Add course-specific role controls (Stacked vertically to prevent overflow)
+                      StreamBuilder<QuerySnapshot>(
+                        stream: _firestore.collection('courses').snapshots(),
+                        builder: (context, snapshot) {
+                          if (!snapshot.hasData) return const LinearProgressIndicator();
+                          final docs = snapshot.data!.docs;
+
+                          // Filter out already selected courses in UI to prevent duplicates
+                          final availableDocs = docs.where((doc) => !tempRoles.containsKey('course_${doc.id}')).toList();
+
+                          return DropdownButtonFormField<String>(
+                            initialValue: selectedCourseId,
+                            isExpanded: true,
+                            decoration: const InputDecoration(labelText: 'Select Course'),
+                            items: availableDocs.map((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              return DropdownMenuItem(
+                                value: doc.id,
+                                child: Text('${data['code']} - ${data['name']}'),
+                              );
+                            }).toList(),
+                            onChanged: (val) {
+                              setDialogState(() {
+                                selectedCourseId = val;
+                              });
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 16),
                       Row(
                         crossAxisAlignment: CrossAxisAlignment.end,
                         children: [
                           Expanded(
-                            flex: 2,
-                            child: StreamBuilder<QuerySnapshot>(
-                              stream: _firestore.collection('courses').snapshots(),
-                              builder: (context, snapshot) {
-                                if (!snapshot.hasData) return const LinearProgressIndicator();
-                                final docs = snapshot.data!.docs;
-
-                                // Filter out already selected courses in UI to prevent duplicates
-                                final availableDocs = docs.where((doc) => !tempRoles.containsKey('course_${doc.id}')).toList();
-
-                                return DropdownButtonFormField<String>(
-                                  initialValue: selectedCourseId,
-                                  isExpanded: true,
-                                  decoration: const InputDecoration(labelText: 'Course'),
-                                  items: availableDocs.map((doc) {
-                                    final data = doc.data() as Map<String, dynamic>;
-                                    return DropdownMenuItem(
-                                      value: doc.id,
-                                      child: Text('${data['code']} - ${data['name']}'),
-                                    );
-                                  }).toList(),
-                                  onChanged: (val) {
-                                    setDialogState(() {
-                                      selectedCourseId = val;
-                                    });
-                                  },
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            flex: 1,
                             child: DropdownButtonFormField<String>(
                               initialValue: selectedContextRole,
-                              decoration: const InputDecoration(labelText: 'Role'),
+                              isExpanded: true,
+                              decoration: const InputDecoration(labelText: 'Context Role'),
                               items: const [
                                 DropdownMenuItem(value: 'teacher', child: Text('Teacher')),
-                                DropdownMenuItem(value: 'committee_member', child: Text('Committee')),
+                                DropdownMenuItem(value: 'committee_member', child: Text('Committee Member')),
                                 DropdownMenuItem(value: 'committee_lead', child: Text('Committee Lead')),
                               ],
                               onChanged: (val) {
@@ -331,7 +330,7 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
                               },
                             ),
                           ),
-                          const SizedBox(width: 8),
+                          const SizedBox(width: 12),
                           IconButton(
                             icon: const Icon(Icons.add_circle, color: accentBlue, size: 36),
                             onPressed: selectedCourseId == null
