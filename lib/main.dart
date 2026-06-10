@@ -79,9 +79,7 @@ class _MyHomePageState extends State<MyHomePage> {
           padding: EdgeInsets.zero,
           children: [
             const DrawerHeader(
-              decoration: BoxDecoration(
-                color: Color(0xFF1E3A8A),
-              ),
+              decoration: BoxDecoration(color: Color(0xFF1E3A8A)),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisAlignment: MainAxisAlignment.end,
@@ -97,23 +95,26 @@ class _MyHomePageState extends State<MyHomePage> {
                   SizedBox(height: 4),
                   Text(
                     'Super Admin Panel',
-                    style: TextStyle(
-                      color: Colors.white70,
-                      fontSize: 14,
-                    ),
+                    style: TextStyle(color: Colors.white70, fontSize: 14),
                   ),
                 ],
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.dashboard_rounded, color: Color(0xFF1E3A8A)),
+              leading: const Icon(
+                Icons.dashboard_rounded,
+                color: Color(0xFF1E3A8A),
+              ),
               title: const Text('Dashboard'),
               onTap: () {
                 Navigator.pop(context);
               },
             ),
             ListTile(
-              leading: const Icon(Icons.business_rounded, color: Color(0xFF1E3A8A)),
+              leading: const Icon(
+                Icons.business_rounded,
+                color: Color(0xFF1E3A8A),
+              ),
               title: const Text('Taxonomy Management'),
               onTap: () {
                 Navigator.pop(context);
@@ -177,7 +178,10 @@ class _MyHomePageState extends State<MyHomePage> {
                     ),
                     const SizedBox(height: 32),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 16,
+                      ),
                       decoration: BoxDecoration(
                         color: const Color(0xFFFEF3C7),
                         borderRadius: BorderRadius.circular(16),
@@ -185,7 +189,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       ),
                       child: Row(
                         children: [
-                          const Icon(Icons.info_outline_rounded, color: Color(0xFFD97706)),
+                          const Icon(
+                            Icons.info_outline_rounded,
+                            color: Color(0xFFD97706),
+                          ),
                           const SizedBox(width: 16),
                           Expanded(
                             child: Text(
@@ -212,7 +219,8 @@ class _MyHomePageState extends State<MyHomePage> {
                         Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (context) => const TaxonomyManagementScreen(),
+                            builder: (context) =>
+                                const TaxonomyManagementScreen(),
                           ),
                         );
                       },
@@ -221,7 +229,10 @@ class _MyHomePageState extends State<MyHomePage> {
                       style: ElevatedButton.styleFrom(
                         backgroundColor: const Color(0xFF1E3A8A),
                         foregroundColor: Colors.white,
-                        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 18),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 24,
+                          vertical: 18,
+                        ),
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(12),
                         ),

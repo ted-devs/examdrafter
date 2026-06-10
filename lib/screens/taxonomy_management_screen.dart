@@ -416,9 +416,14 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
 
                 topics = topics.where((t) => t.name.toLowerCase().contains(_topicSearch)).toList();
 
-                return ListView.separated(
+                return GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 400,
+                    mainAxisExtent: 180,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20,
+                  ),
                   itemCount: topics.length,
-                  separatorBuilder: (context, idx) => const SizedBox(height: 12),
                   itemBuilder: (context, idx) {
                     final topic = topics[idx];
 
@@ -426,66 +431,76 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                       color: Colors.white,
                       elevation: 0,
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(16),
                         side: BorderSide(color: Colors.grey.shade200),
                       ),
                       child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 20.0, vertical: 16.0),
-                        child: Row(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Text(
-                                    topic.name,
-                                    style: const TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: primaryBlue,
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Icon(Icons.topic_rounded, color: primaryBlue, size: 24),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.grey),
+                                      onPressed: () => _showAddEditTopicDialog(topic: topic),
                                     ),
-                                  ),
-                                  const SizedBox(height: 8),
-                                  // Render course chips
-                                  Wrap(
-                                    spacing: 8,
-                                    runSpacing: 4,
-                                    children: topic.courseIds.map((cId) {
-                                      return FutureBuilder<DocumentSnapshot>(
-                                        future: _firestore.collection('courses').doc(cId).get(),
-                                        builder: (context, courseSnapshot) {
-                                          String courseName = '...';
-                                          if (courseSnapshot.hasData && courseSnapshot.data!.exists) {
-                                            final data = courseSnapshot.data!.data() as Map<String, dynamic>?;
-                                            courseName = (data?['code'] ?? '').toString().toUpperCase();
-                                          }
-                                          return Chip(
-                                            label: Text(
-                                              courseName,
-                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
-                                            ),
-                                            backgroundColor: lightBlueBg,
-                                            side: BorderSide.none,
-                                            padding: EdgeInsets.zero,
-                                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                          );
-                                        },
-                                      );
-                                    }).toList(),
-                                  ),
-                                ],
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.redAccent),
+                                      onPressed: () => _showDeleteConfirmation(
+                                        title: 'Delete Topic',
+                                        content: 'Are you sure you want to delete topic "${topic.name}"?',
+                                        onConfirm: () => _firestore.collection('topics').doc(topic.id).delete(),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Expanded(
+                              child: Text(
+                                topic.name,
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryBlue,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
                               ),
                             ),
-                            IconButton(
-                              icon: const Icon(Icons.edit_outlined, color: Colors.grey),
-                              onPressed: () => _showAddEditTopicDialog(topic: topic),
-                            ),
-                            IconButton(
-                              icon: const Icon(Icons.delete_outline_rounded, color: Colors.redAccent),
-                              onPressed: () => _showDeleteConfirmation(
-                                title: 'Delete Topic',
-                                content: 'Are you sure you want to delete topic "${topic.name}"?',
-                                onConfirm: () => _firestore.collection('topics').doc(topic.id).delete(),
+                            const SizedBox(height: 8),
+                            SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: Wrap(
+                                spacing: 6,
+                                children: topic.courseIds.map((cId) {
+                                  return FutureBuilder<DocumentSnapshot>(
+                                    future: _firestore.collection('courses').doc(cId).get(),
+                                    builder: (context, courseSnapshot) {
+                                      String courseName = '...';
+                                      if (courseSnapshot.hasData && courseSnapshot.data!.exists) {
+                                        final data = courseSnapshot.data!.data() as Map<String, dynamic>?;
+                                        courseName = (data?['code'] ?? '').toString().toUpperCase();
+                                      }
+                                      return Chip(
+                                        label: Text(
+                                          courseName,
+                                          style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w600),
+                                        ),
+                                        backgroundColor: lightBlueBg,
+                                        side: BorderSide.none,
+                                        padding: EdgeInsets.zero,
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      );
+                                    },
+                                  );
+                                }).toList(),
                               ),
                             ),
                           ],
