@@ -17,6 +17,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
   String _deptSearch = '';
   String _courseSearch = '';
   String _topicSearch = '';
+  String _sectionSearch = '';
 
   // Selection states for visualization
   String? _selectedDepartmentId;
@@ -25,7 +26,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 3, vsync: this);
+    _tabController = TabController(length: 4, vsync: this);
   }
 
   @override
@@ -63,6 +64,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
             Tab(icon: Icon(Icons.business_rounded), text: 'Departments'),
             Tab(icon: Icon(Icons.school_rounded), text: 'Courses'),
             Tab(icon: Icon(Icons.topic_rounded), text: 'Topics'),
+            Tab(icon: Icon(Icons.layers_rounded), text: 'Sections'),
           ],
         ),
       ),
@@ -74,6 +76,7 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
             _buildDepartmentsTab(theme),
             _buildCoursesTab(theme),
             _buildTopicsTab(theme),
+            _buildSectionsTab(theme),
           ],
         ),
       ),
@@ -897,6 +900,229 @@ class _TaxonomyManagementScreenState extends State<TaxonomyManagementScreen> wit
                       await _firestore.collection('topics').add({
                         'name': name,
                         'courseIds': selectedCourses,
+                        'createdAt': FieldValue.serverTimestamp(),
+                      });
+                    }
+                    if (context.mounted) Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(backgroundColor: primaryBlue, foregroundColor: Colors.white),
+                  child: Text(isEdit ? 'Save Changes' : 'Create'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
+  // ================= SECTIONS TAB =================
+
+  Widget _buildSectionsTab(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.all(24.0),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildHeaderSection(
+            title: 'Manage Sections',
+            subtitle: _selectedCourseId != null
+                ? 'Showing sections in selected course.'
+                : 'Define sections associated with courses.',
+            buttonText: 'Add Section',
+            onSearchChanged: (val) => setState(() => _sectionSearch = val.toLowerCase()),
+            onButtonPressed: () => _showAddEditSectionDialog(),
+            filterActive: _selectedCourseId != null,
+            onClearFilter: () => setState(() => _selectedCourseId = null),
+          ),
+          const SizedBox(height: 24),
+          Expanded(
+            child: StreamBuilder<QuerySnapshot>(
+              stream: _firestore.collection('sections').orderBy('createdAt', descending: true).snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator(color: accentBlue));
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return _buildEmptyState('No sections found', 'Create a section to populate this list.');
+                }
+
+                // Filter by course selection and search query
+                var sections = snapshot.data!.docs
+                    .map((doc) => Section.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+                    .toList();
+
+                if (_selectedCourseId != null) {
+                  sections = sections.where((s) => s.courseId == _selectedCourseId).toList();
+                }
+
+                sections = sections
+                    .where((s) => s.name.toLowerCase().contains(_sectionSearch))
+                    .toList();
+
+                return GridView.builder(
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 400,
+                    mainAxisExtent: 180,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20,
+                  ),
+                  itemCount: sections.length,
+                  itemBuilder: (context, idx) {
+                    final section = sections[idx];
+
+                    return Card(
+                      color: Colors.white,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                          color: Colors.grey.shade200,
+                          width: 1,
+                        ),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.all(20.0),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                const Icon(Icons.layers_rounded, color: primaryBlue, size: 24),
+                                Row(
+                                  children: [
+                                    IconButton(
+                                      icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.grey),
+                                      onPressed: () => _showAddEditSectionDialog(section: section),
+                                    ),
+                                    IconButton(
+                                      icon: const Icon(Icons.delete_outline_rounded, size: 20, color: Colors.redAccent),
+                                      onPressed: () => _showDeleteConfirmation(
+                                        title: 'Delete Section',
+                                        content: 'Are you sure you want to delete section "${section.name}"?',
+                                        onConfirm: () => _firestore.collection('sections').doc(section.id).delete(),
+                                      ),
+                                    ),
+                                  ],
+                                )
+                              ],
+                            ),
+                            const SizedBox(height: 12),
+                            Expanded(
+                              child: Text(
+                                section.name,
+                                style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryBlue,
+                                ),
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            // Fetch course code/name asynchronously
+                            FutureBuilder<DocumentSnapshot>(
+                              future: _firestore.collection('courses').doc(section.courseId).get(),
+                              builder: (context, courseSnapshot) {
+                                String courseCode = '...';
+                                if (courseSnapshot.hasData && courseSnapshot.data!.exists) {
+                                  final data = courseSnapshot.data!.data() as Map<String, dynamic>?;
+                                  courseCode = (data?['code'] ?? '').toString().toUpperCase();
+                                }
+                                return Text(
+                                  'Course: $courseCode',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    color: Colors.grey[600],
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                );
+                              },
+                            )
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // --- Section Form Dialog ---
+  void _showAddEditSectionDialog({Section? section}) {
+    final nameController = TextEditingController(text: section?.name);
+    String? selectedCourseId = section?.courseId ?? _selectedCourseId;
+    final isEdit = section != null;
+
+    showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              title: Text(isEdit ? 'Edit Section' : 'Create Section'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Dropdown to choose course
+                  StreamBuilder<QuerySnapshot>(
+                    stream: _firestore.collection('courses').snapshots(),
+                    builder: (context, snapshot) {
+                      if (!snapshot.hasData) return const CircularProgressIndicator();
+
+                      final courses = snapshot.data!.docs;
+                      return DropdownButtonFormField<String>(
+                        initialValue: selectedCourseId,
+                        decoration: const InputDecoration(labelText: 'Course'),
+                        items: courses.map((doc) {
+                          final data = doc.data() as Map<String, dynamic>;
+                          return DropdownMenuItem(
+                            value: doc.id,
+                            child: Text('${data['code']} - ${data['name']}'),
+                          );
+                        }).toList(),
+                        onChanged: (val) {
+                          setDialogState(() {
+                            selectedCourseId = val;
+                          });
+                        },
+                      );
+                    },
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: nameController,
+                    decoration: const InputDecoration(labelText: 'Section Name', hintText: 'e.g. Section A'),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () async {
+                    final name = nameController.text.trim();
+                    if (name.isEmpty || selectedCourseId == null) return;
+
+                    if (isEdit) {
+                      await _firestore.collection('sections').doc(section.id).update({
+                        'name': name,
+                        'courseId': selectedCourseId,
+                      });
+                    } else {
+                      await _firestore.collection('sections').add({
+                        'name': name,
+                        'courseId': selectedCourseId,
                         'createdAt': FieldValue.serverTimestamp(),
                       });
                     }

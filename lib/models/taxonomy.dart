@@ -134,3 +134,44 @@ class Topic {
     };
   }
 }
+
+class Section {
+  final String id;
+  final String courseId;
+  final String name;
+  final DateTime createdAt;
+
+  Section({
+    required this.id,
+    required this.courseId,
+    required this.name,
+    required this.createdAt,
+  });
+
+  factory Section.fromMap(Map<String, dynamic> data, String id) {
+    DateTime parsedCreatedAt;
+    final rawCreatedAt = data['createdAt'];
+    if (rawCreatedAt is Timestamp) {
+      parsedCreatedAt = rawCreatedAt.toDate();
+    } else if (rawCreatedAt is String) {
+      parsedCreatedAt = DateTime.parse(rawCreatedAt);
+    } else {
+      parsedCreatedAt = DateTime.now();
+    }
+
+    return Section(
+      id: id,
+      courseId: data['courseId'] ?? '',
+      name: data['name'] ?? '',
+      createdAt: parsedCreatedAt,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'courseId': courseId,
+      'name': name,
+      'createdAt': Timestamp.fromDate(createdAt),
+    };
+  }
+}

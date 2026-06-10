@@ -119,6 +119,24 @@ void main() {
       expect(map['courseIds'], isA<List>());
       expect(map['courseIds'], contains('cs_102'));
     });
+
+    test('Section serialization', () {
+      final now = Timestamp.now();
+      final data = {
+        'courseId': 'cs_101',
+        'name': 'Section A',
+        'createdAt': now,
+      };
+
+      final section = Section.fromMap(data, 'sec_a');
+      expect(section.id, 'sec_a');
+      expect(section.courseId, 'cs_101');
+      expect(section.name, 'Section A');
+
+      final map = section.toMap();
+      expect(map['courseId'], 'cs_101');
+      expect(map['name'], 'Section A');
+    });
   });
 
   group('Question Model Tests', () {

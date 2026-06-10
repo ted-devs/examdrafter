@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exam_request.dart';
+import '../models/taxonomy.dart';
 import '../services/auth_service.dart';
 
 class ExamCommissionForm extends StatefulWidget {
@@ -78,24 +79,6 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                         ),
                         const SizedBox(height: 28),
 
-                        // Section input
-                        TextFormField(
-                          decoration: InputDecoration(
-                            labelText: 'Target Section',
-                            hintText: 'e.g. Section A, Fall Semester',
-                            prefixIcon: const Icon(Icons.class_rounded, color: primaryBlue),
-                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-                          ),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter the target section.';
-                            }
-                            return null;
-                          },
-                          onSaved: (val) => _section = val?.trim() ?? '',
-                        ),
-                        const SizedBox(height: 20),
-
                         // Department Dropdown
                         StreamBuilder<QuerySnapshot>(
                           stream: _firestore.collection('departments').snapshots(),
@@ -121,6 +104,7 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                                 setState(() {
                                   _selectedDeptId = val;
                                   _selectedCourseId = null; // Clear child course when dept changes
+                                  _section = ''; // Clear section when dept changes
                                 });
                               },
                               validator: (val) => val == null ? 'Please select a department.' : null,
@@ -143,6 +127,7 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                             }).toList();
 
                             return DropdownButtonFormField<String>(
+                              key: ValueKey(_selectedDeptId),
                               initialValue: _selectedCourseId,
                               decoration: InputDecoration(
                                 labelText: 'Target Course',
@@ -162,9 +147,53 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
                               onChanged: (val) {
                                 setState(() {
                                   _selectedCourseId = val;
+                                  _section = ''; // Clear section when course changes
                                 });
                               },
                               validator: (val) => val == null ? 'Please select a course.' : null,
+                            );
+                          },
+                        ),
+                        const SizedBox(height: 20),
+
+                        // Section Dropdown (Dependent on selected course)
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _firestore.collection('sections').snapshots(),
+                          builder: (context, snapshot) {
+                            if (!snapshot.hasData) return const LinearProgressIndicator();
+                            final docs = snapshot.data!.docs;
+
+                            // Filter sections by selected course
+                            final filteredSections = docs.where((doc) {
+                              final data = doc.data() as Map<String, dynamic>;
+                              return data['courseId'] == _selectedCourseId;
+                            }).map((doc) => Section.fromMap(doc.data() as Map<String, dynamic>, doc.id)).toList();
+
+                            return DropdownButtonFormField<String>(
+                              key: ValueKey(_selectedCourseId),
+                              initialValue: _section.isEmpty ? null : _section,
+                              decoration: InputDecoration(
+                                labelText: 'Target Section',
+                                prefixIcon: const Icon(Icons.layers_rounded, color: primaryBlue),
+                                border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              disabledHint: const Text('Select a course first'),
+                              items: _selectedCourseId == null
+                                  ? null
+                                  : filteredSections.map((sec) {
+                                      return DropdownMenuItem(
+                                        value: sec.name,
+                                        child: Text(sec.name),
+                                      );
+                                    }).toList(),
+                              onChanged: _selectedCourseId == null
+                                  ? null
+                                  : (val) {
+                                      setState(() {
+                                        _section = val ?? '';
+                                      });
+                                    },
+                              validator: (val) => (val == null || val.isEmpty) ? 'Please select a section.' : null,
                             );
                           },
                         ),
