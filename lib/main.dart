@@ -4,6 +4,8 @@ import 'firebase_options.dart';
 import 'services/auth_service.dart';
 import 'screens/login_page.dart';
 import 'screens/taxonomy_management_screen.dart';
+import 'screens/user_roles_screen.dart';
+import 'screens/exam_commission_form.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -122,6 +124,38 @@ class _MyHomePageState extends State<MyHomePage> {
                   context,
                   MaterialPageRoute(
                     builder: (context) => const TaxonomyManagementScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.shield_rounded,
+                color: Color(0xFF1E3A8A),
+              ),
+              title: const Text('User Role Management'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const UserRolesScreen(),
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(
+                Icons.assignment_rounded,
+                color: Color(0xFF1E3A8A),
+              ),
+              title: const Text('Commission Exam'),
+              onTap: () {
+                Navigator.pop(context);
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const ExamCommissionForm(),
                   ),
                 );
               },

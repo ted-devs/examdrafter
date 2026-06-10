@@ -2,14 +2,15 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 
 class LoginPage extends StatefulWidget {
-  const LoginPage({super.key});
+  final BaseAuthService? authService;
+  const LoginPage({super.key, this.authService});
 
   @override
   State<LoginPage> createState() => _LoginPageState();
 }
 
 class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMixin {
-  final AuthService _authService = AuthService();
+  late final BaseAuthService _authService;
   final _formKey = GlobalKey<FormState>();
 
   final TextEditingController _emailController = TextEditingController();
@@ -28,6 +29,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   @override
   void initState() {
     super.initState();
+    _authService = widget.authService ?? AuthService();
     _fadeController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300),
