@@ -8,6 +8,9 @@ import 'screens/login_page.dart';
 import 'screens/taxonomy_management_screen.dart';
 import 'screens/user_roles_screen.dart';
 import 'screens/exam_commission_form.dart';
+import 'screens/committee_delegation_screen.dart';
+import 'screens/teacher_drafting_screen.dart';
+import 'screens/committee_curation_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -235,7 +238,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildAdminDashboard(BuildContext context, bool isSuperAdmin, String displayName) {
+  Widget _buildAdminDashboard(BuildContext context, bool isSuperAdmin, String displayName, Map<String, dynamic> roles) {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -450,7 +453,7 @@ class _MyHomePageState extends State<MyHomePage> {
             ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
-          Wrap(
+           Wrap(
             spacing: 16,
             runSpacing: 16,
             children: [
@@ -483,6 +486,26 @@ class _MyHomePageState extends State<MyHomePage> {
                   icon: Icons.assignment_rounded,
                   color: const Color(0xFFF59E0B),
                   onTap: () => _open(const ExamCommissionForm()),
+                ),
+              ),
+              SizedBox(
+                width: 320,
+                child: _actionCard(
+                  title: 'Committee Delegation',
+                  subtitle: 'Set timelines and split quotas among teachers.',
+                  icon: Icons.assignment_ind_rounded,
+                  color: const Color(0xFF8B5CF6),
+                  onTap: () => _open(const CommitteeDelegationScreen()),
+                ),
+              ),
+              SizedBox(
+                width: 320,
+                child: _actionCard(
+                  title: 'Curation Board',
+                  subtitle: 'Collaborate on question selection and voting.',
+                  icon: Icons.rate_review_rounded,
+                  color: const Color(0xFFEC4899),
+                  onTap: () => _open(const CommitteeCurationScreen()),
                 ),
               ),
             ],
@@ -614,7 +637,10 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _buildUserDashboard(BuildContext context, String displayName) {
+  Widget _buildUserDashboard(BuildContext context, String displayName, Map<String, dynamic> roles) {
+    final isTeacher = roles.entries.any((entry) => entry.key.startsWith('course_') && entry.value == 'teacher');
+    final isCommittee = roles.entries.any((entry) => entry.key.startsWith('course_') && (entry.value == 'committee_lead' || entry.value == 'committee_member'));
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -634,6 +660,13 @@ class _MyHomePageState extends State<MyHomePage> {
                 end: Alignment.bottomRight,
               ),
               borderRadius: BorderRadius.circular(28),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFF1D4ED8).withValues(alpha: 0.18),
+                  blurRadius: 24,
+                  offset: const Offset(0, 12),
+                ),
+              ],
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -648,7 +681,7 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
                 const SizedBox(height: 12),
                 Text(
-                  'Welcome to Exam Drafter. Your user portal features (question drafting, reviews, and question bank access) are under active development and will be available shortly.',
+                  'Welcome to Exam Drafter. Access your question drafting and curation workflows below.',
                   style: TextStyle(
                     color: Colors.white.withValues(alpha: 0.9),
                     fontSize: 16,
@@ -657,6 +690,59 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ],
             ),
+          ),
+          const SizedBox(height: 32),
+          Text(
+            'Quick Actions',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+          ),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 16,
+            runSpacing: 16,
+            children: [
+              if (isTeacher)
+                SizedBox(
+                  width: 320,
+                  child: _actionCard(
+                    title: 'MCQ Drafting Workspace',
+                    subtitle: 'Create, edit, and submit delegated exam questions.',
+                    icon: Icons.edit_note_rounded,
+                    color: const Color(0xFF2563EB),
+                    onTap: () => _open(const TeacherDraftingScreen()),
+                  ),
+                ),
+              if (isCommittee) ...[
+                SizedBox(
+                  width: 320,
+                  child: _actionCard(
+                    title: 'Committee Delegation',
+                    subtitle: 'Set timelines and split quotas among teachers.',
+                    icon: Icons.assignment_ind_rounded,
+                    color: const Color(0xFFF59E0B),
+                    onTap: () => _open(const CommitteeDelegationScreen()),
+                  ),
+                ),
+                SizedBox(
+                  width: 320,
+                  child: _actionCard(
+                    title: 'Curation Board',
+                    subtitle: 'Collaborate on question selection and voting.',
+                    icon: Icons.rate_review_rounded,
+                    color: const Color(0xFF10B981),
+                    onTap: () => _open(const CommitteeCurationScreen()),
+                  ),
+                ),
+              ],
+              if (!isTeacher && !isCommittee)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Text(
+                    'You currently have no active course roles. Please contact an Admin to assign you as a teacher or committee member.',
+                    style: TextStyle(color: Colors.grey),
+                  ),
+                ),
+            ],
           ),
         ],
       ),
@@ -733,8 +819,8 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
           body: isAnyAdmin
-              ? _buildAdminDashboard(context, isSuperAdmin, displayName)
-              : _buildUserDashboard(context, displayName),
+              ? _buildAdminDashboard(context, isSuperAdmin, displayName, roles)
+              : _buildUserDashboard(context, displayName, roles),
         );
       },
     );
