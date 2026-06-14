@@ -58,6 +58,8 @@ class ExamRequest {
   final String? revisionNotes;
   final String createdByUid;
   final DateTime createdAt;
+  final String? semester;
+  final String? year;
 
   ExamRequest({
     required this.id,
@@ -72,6 +74,8 @@ class ExamRequest {
     this.revisionNotes,
     required this.createdByUid,
     required this.createdAt,
+    this.semester,
+    this.year,
   });
 
   factory ExamRequest.fromMap(Map<String, dynamic> data, String id) {
@@ -105,6 +109,8 @@ class ExamRequest {
       revisionNotes: data['revisionNotes'],
       createdByUid: data['createdByUid'] ?? '',
       createdAt: parseDateTime(data['createdAt']),
+      semester: data['semester'],
+      year: data['year'],
     );
   }
 
@@ -121,6 +127,8 @@ class ExamRequest {
       if (revisionNotes != null) 'revisionNotes': revisionNotes,
       'createdByUid': createdByUid,
       'createdAt': Timestamp.fromDate(createdAt),
+      if (semester != null) 'semester': semester,
+      if (year != null) 'year': year,
     };
   }
 }
