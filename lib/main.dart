@@ -11,6 +11,8 @@ import 'screens/exam_commission_form.dart';
 import 'screens/committee_delegation_screen.dart';
 import 'screens/teacher_drafting_screen.dart';
 import 'screens/committee_curation_screen.dart';
+import 'screens/admin_review_screen.dart';
+import 'screens/compliance_dashboard.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -508,8 +510,19 @@ class _MyHomePageState extends State<MyHomePage> {
                   onTap: () => _open(const CommitteeCurationScreen()),
                 ),
               ),
+              SizedBox(
+                width: 320,
+                child: _actionCard(
+                  title: 'Exam Review Board',
+                  subtitle: 'Review finalized papers, approve, and print PDF.',
+                  icon: Icons.verified_user_rounded,
+                  color: const Color(0xFF0F172A),
+                  onTap: () => _open(const AdminReviewScreen()),
+                ),
+              ),
             ],
           ),
+          _buildExtensionRequestsSection(),
           const SizedBox(height: 24),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -637,6 +650,173 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Widget _buildExtensionRequestsSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SizedBox(height: 24),
+        Text(
+          'Pending Extension Requests',
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+        ),
+        const SizedBox(height: 12),
+        StreamBuilder<QuerySnapshot>(
+          stream: _firestore
+              .collection('extension_requests')
+              .where('status', isEqualTo: 'pending')
+              .snapshots(),
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+
+            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.check_circle_outline_rounded, color: Colors.green, size: 28),
+                      const SizedBox(width: 12),
+                      Text(
+                        'All extensions processed. No pending requests.',
+                        style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }
+
+            return Column(
+              children: snapshot.data!.docs.map((doc) {
+                final extMap = doc.data() as Map<String, dynamic>;
+                final extId = doc.id;
+                final courseId = extMap['courseId'] ?? '';
+                final examRequestId = extMap['examRequestId'] ?? '';
+                final requestedDeadline = (extMap['requestedDeadline'] as Timestamp).toDate();
+                final currentDeadline = (extMap['currentDeadline'] as Timestamp).toDate();
+                final reason = extMap['reason'] ?? '';
+
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  child: Padding(
+                    padding: const EdgeInsets.all(18),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            const Icon(Icons.timer_outlined, color: Colors.orange),
+                            const SizedBox(width: 8),
+                            Text(
+                              'Course: $courseId',
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            const Spacer(),
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.orange.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: const Text(
+                                'PENDING',
+                                style: TextStyle(color: Colors.orange, fontSize: 10, fontWeight: FontWeight.bold),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text('Current Internal Deadline: ${currentDeadline.toLocal().toString().split(' ')[0]}'),
+                        Text(
+                          'Requested New Deadline: ${requestedDeadline.toLocal().toString().split(' ')[0]}',
+                          style: const TextStyle(fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          'Reason: "$reason"',
+                          style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic),
+                        ),
+                        const SizedBox(height: 16),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton(
+                              onPressed: () async {
+                                try {
+                                  final batch = _firestore.batch();
+                                  batch.update(_firestore.collection('extension_requests').doc(extId), {
+                                    'status': 'rejected',
+                                  });
+                                  batch.set(_firestore.collection('notifications').doc(), {
+                                    'title': 'Extension Request Rejected',
+                                    'message': 'Extension request for course $courseId was rejected by Admin.',
+                                    'type': 'extension_request_rejected',
+                                    'relatedRequestId': examRequestId,
+                                    'createdAt': Timestamp.fromDate(DateTime.now()),
+                                  });
+                                  await batch.commit();
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              style: OutlinedButton.styleFrom(
+                                foregroundColor: Colors.redAccent,
+                                side: const BorderSide(color: Colors.redAccent),
+                              ),
+                              child: const Text('Reject'),
+                            ),
+                            const SizedBox(width: 12),
+                            ElevatedButton(
+                              onPressed: () async {
+                                try {
+                                  final batch = _firestore.batch();
+                                  batch.update(_firestore.collection('extension_requests').doc(extId), {
+                                    'status': 'approved',
+                                  });
+                                  batch.update(_firestore.collection('exam_requests').doc(examRequestId), {
+                                    'internalDeadline': Timestamp.fromDate(requestedDeadline),
+                                  });
+                                  batch.set(_firestore.collection('notifications').doc(), {
+                                    'title': 'Extension Request Approved',
+                                    'message': 'Extension request for course $courseId was approved. New deadline: ${requestedDeadline.toLocal().toString().split(' ')[0]}.',
+                                    'type': 'extension_request_approved',
+                                    'relatedRequestId': examRequestId,
+                                    'createdAt': Timestamp.fromDate(DateTime.now()),
+                                  });
+                                  await batch.commit();
+                                } catch (e) {
+                                  if (context.mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      SnackBar(content: Text('Error: $e')),
+                                    );
+                                  }
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.green,
+                              ),
+                              child: const Text('Approve'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }).toList(),
+            );
+          },
+        ),
+      ],
+    );
+  }
+
   Widget _buildUserDashboard(BuildContext context, String displayName, Map<String, dynamic> roles) {
     final isTeacher = roles.entries.any((entry) => entry.key.startsWith('course_') && entry.value == 'teacher');
     final isCommittee = roles.entries.any((entry) => entry.key.startsWith('course_') && (entry.value == 'committee_lead' || entry.value == 'committee_member'));
@@ -731,6 +911,16 @@ class _MyHomePageState extends State<MyHomePage> {
                     icon: Icons.rate_review_rounded,
                     color: const Color(0xFF10B981),
                     onTap: () => _open(const CommitteeCurationScreen()),
+                  ),
+                ),
+                SizedBox(
+                  width: 320,
+                  child: _actionCard(
+                    title: 'Compliance Board',
+                    subtitle: 'Monitor teacher progress and reassign quotas.',
+                    icon: Icons.warning_amber_rounded,
+                    color: const Color(0xFFE11D48),
+                    onTap: () => _open(const ComplianceDashboard()),
                   ),
                 ),
               ],
