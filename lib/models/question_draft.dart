@@ -40,3 +40,39 @@ class ReviewRecord {
     this.isTieBreaker = false,
   });
 }
+
+class TeacherQuota {
+  String id;
+  String teacherId;
+  String teacherName;
+  String courseId;
+  String courseName;
+  int quotaCount;
+  int submittedCount;
+  String status; // pending|assigned|drafting|completed|reassigned
+  DateTime? deadline;
+  String assignedBy;
+  String? notes;
+  DateTime createdAt;
+  DateTime updatedAt;
+
+  TeacherQuota({
+    required this.id,
+    required this.teacherId,
+    required this.teacherName,
+    required this.courseId,
+    required this.courseName,
+    required this.quotaCount,
+    this.submittedCount = 0,
+    this.status = 'assigned',
+    this.deadline,
+    required this.assignedBy,
+    this.notes,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) : createdAt = createdAt ?? DateTime.now(),
+       updatedAt = updatedAt ?? DateTime.now();
+
+  bool get isCompleted => status == 'completed';
+  bool get isOverQuota => submittedCount > quotaCount;
+}

@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/question_draft.dart';
@@ -11,6 +12,7 @@ class QuestionDraftingPage extends StatefulWidget {
 }
 
 class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
+  final DraftService _service = DraftService();
   final _formKey = GlobalKey<FormState>();
   final _questionController = TextEditingController();
   final _topicController = TextEditingController();
@@ -20,6 +22,8 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
   );
   int _correctIndex = 0;
   String _difficulty = 'Medium';
+  bool _isSaving = false;
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -29,47 +33,77 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
     super.dispose();
   }
 
-  void _saveDraft({bool showFeedback = true}) {
-    if (!_formKey.currentState!.validate()) return;
-    final options = List<Option>.generate(
-      _optionControllers.length,
-      (i) => Option(
-        text: _optionControllers[i].text.trim(),
-        isCorrect: i == _correctIndex,
-      ),
-    );
-    final draft = QuestionDraft(
-      teacherId: 'local_teacher',
-      questionText: _questionController.text.trim(),
-      options: options,
-      topics: _topicController.text
-          .split(',')
-          .map((s) => s.trim())
-          .where((s) => s.isNotEmpty)
-          .toList(),
-      difficulty: _difficulty,
-    );
-    DraftService().saveDraft(draft);
-    if (mounted) {
-      setState(() {});
-      if (showFeedback) {
+  Future<QuestionDraft?> _saveDraft({bool showFeedback = true}) async {
+    if (_isSaving) return null;
+    if (!_formKey.currentState!.validate()) return null;
+
+    setState(() => _isSaving = true);
+    try {
+      final options = List<Option>.generate(
+        _optionControllers.length,
+        (i) => Option(
+          text: _optionControllers[i].text.trim(),
+          isCorrect: i == _correctIndex,
+        ),
+      );
+      final draft = QuestionDraft(
+        teacherId: _service.currentTeacherId,
+        questionText: _questionController.text.trim(),
+        options: options,
+        topics: _topicController.text
+            .split(',')
+            .map((s) => s.trim())
+            .where((s) => s.isNotEmpty)
+            .toList(),
+        difficulty: _difficulty,
+      );
+      await _service.saveDraft(draft);
+      if (mounted) {
+        if (showFeedback) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('Draft saved')));
+        }
+        return draft;
+      }
+    } catch (error) {
+      if (mounted) {
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('Draft saved')));
+        ).showSnackBar(SnackBar(content: Text('Could not save draft: $error')));
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSaving = false);
       }
     }
+
+    return null;
   }
 
-  void _submitDraft() {
-    _saveDraft(showFeedback: false);
-    final last = DraftService().drafts.last;
-    DraftService().submitDraft(last.id!);
-    if (mounted) {
-      setState(() {});
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Draft submitted to review pool')),
-      );
-      Navigator.of(context).pop();
+  Future<void> _submitDraft() async {
+    if (_isSubmitting) return;
+    setState(() => _isSubmitting = true);
+    try {
+      final savedDraft = await _saveDraft(showFeedback: false);
+      if (savedDraft?.id == null) return;
+      await _service.submitDraft(savedDraft!.id!);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Draft submitted to review pool')),
+        );
+        Navigator.of(context).pop();
+      }
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not submit draft: $error')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
     }
   }
 
@@ -158,8 +192,10 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
 
   @override
   Widget build(BuildContext context) {
-    final service = DraftService();
-    final recentDrafts = service.recentDrafts;
+    final recentDrafts = _service.recentDrafts;
+    final currentQuota = _service.currentTeacherQuota;
+    final activeUserId =
+        FirebaseAuth.instance.currentUser?.uid ?? 'local_teacher';
 
     return Scaffold(
       appBar: AppBar(
@@ -169,7 +205,7 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
             padding: const EdgeInsets.only(right: 16),
             child: Center(
               child: Chip(
-                label: Text('${service.drafts.length} drafts'),
+                label: Text('${_service.drafts.length} drafts'),
                 backgroundColor: const Color(0xFFDBEAFE),
               ),
             ),
@@ -194,6 +230,38 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
                         'Draft a new MCQ',
                         'Write a question that is clear, balanced, and easy to review.',
                       ),
+                      if (currentQuota != null) ...[
+                        const SizedBox(height: 16),
+                        Container(
+                          padding: const EdgeInsets.all(14),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFEEF2FF),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: const Color(0xFFC7D2FE)),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(
+                                Icons.assignment_ind_rounded,
+                                color: Color(0xFF4338CA),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Quota: ${currentQuota.teacherName} • ${currentQuota.courseName} • ${currentQuota.submittedCount}/${currentQuota.quotaCount} submitted',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                  ),
+                                ),
+                              ),
+                              Chip(
+                                label: Text(currentQuota.status.toUpperCase()),
+                                backgroundColor: const Color(0xFFDDD6FE),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
                       const SizedBox(height: 20),
                       TextFormField(
                         controller: _questionController,
@@ -290,20 +358,31 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
                         ),
                       ),
                       const SizedBox(height: 20),
+                      Text(
+                        'Signed in as $activeUserId',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          color: Colors.blueGrey.shade600,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
                       Wrap(
                         spacing: 12,
                         runSpacing: 12,
                         alignment: WrapAlignment.end,
                         children: [
                           OutlinedButton.icon(
-                            onPressed: _saveDraft,
+                            onPressed: _isSaving ? null : () => _saveDraft(),
                             icon: const Icon(Icons.save_rounded),
-                            label: const Text('Save draft'),
+                            label: Text(_isSaving ? 'Saving...' : 'Save draft'),
                           ),
                           FilledButton.icon(
-                            onPressed: _submitDraft,
+                            onPressed: _isSubmitting ? null : _submitDraft,
                             icon: const Icon(Icons.send_rounded),
-                            label: const Text('Submit to review pool'),
+                            label: Text(
+                              _isSubmitting
+                                  ? 'Submitting...'
+                                  : 'Submit to review pool',
+                            ),
                           ),
                         ],
                       ),

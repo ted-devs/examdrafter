@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 
 import 'firebase_options.dart';
 import 'screens/approved_questions_page.dart';
+import 'screens/delegation_page.dart';
 import 'screens/login_page.dart';
 import 'screens/question_drafting_page.dart';
 import 'screens/review_pool_page.dart';
@@ -128,6 +129,16 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final DraftService _draftService = DraftService();
+  final TextEditingController _examIdController = TextEditingController(
+    text: DraftService().firestoreExamId,
+  );
+  bool _useFirestore = DraftService().useFirestore;
+
+  @override
+  void dispose() {
+    _examIdController.dispose();
+    super.dispose();
+  }
 
   Future<void> _open(Widget page) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
@@ -245,6 +256,84 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Widget _backendCard() {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE0E7FF),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Icon(
+                    Icons.cloud_sync_rounded,
+                    color: Color(0xFF4338CA),
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Backend test mode',
+                        style: Theme.of(context).textTheme.titleMedium
+                            ?.copyWith(fontWeight: FontWeight.w800),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        'Toggle Firestore persistence for drafts, votes, quotas, and the question bank.',
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.blueGrey.shade600,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Switch(
+                  value: _useFirestore,
+                  onChanged: (value) {
+                    setState(() {
+                      _useFirestore = value;
+                      _draftService.useFirestore = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: 14),
+            TextField(
+              controller: _examIdController,
+              decoration: const InputDecoration(
+                labelText: 'Firestore exam request ID',
+                prefixIcon: Icon(Icons.badge_rounded),
+              ),
+              onChanged: (value) {
+                _draftService.firestoreExamId = value.trim().isEmpty
+                    ? 'default_exam'
+                    : value.trim();
+              },
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'When enabled, the app writes to `exam_requests/{examId}` and `question_bank` using the current exam request ID.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Colors.blueGrey.shade600),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final totalDrafts = _draftService.drafts.length;
@@ -271,6 +360,11 @@ class _MyHomePageState extends State<MyHomePage> {
           ],
         ),
         actions: [
+          TextButton.icon(
+            onPressed: () => _open(const DelegationPage()),
+            icon: const Icon(Icons.groups_rounded),
+            label: const Text('Delegation'),
+          ),
           TextButton.icon(
             onPressed: () => _open(const QuestionDraftingPage()),
             icon: const Icon(Icons.edit_rounded),
@@ -542,6 +636,15 @@ class _MyHomePageState extends State<MyHomePage> {
                 ),
               ],
             ),
+            const SizedBox(height: 24),
+            Text(
+              'Persistence controls',
+              style: Theme.of(
+                context,
+              ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            _backendCard(),
             const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,

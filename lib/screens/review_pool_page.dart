@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import '../models/question_draft.dart';
@@ -12,30 +13,55 @@ class ReviewPoolPage extends StatefulWidget {
 
 class _ReviewPoolPageState extends State<ReviewPoolPage> {
   final DraftService _draftService = DraftService();
-  final String _committeeMemberId = 'committee_member_1';
-  final String _committeeLeadId = 'committee_lead_1';
   bool _isCommitteeLead = false;
   bool _showAll = false;
+  bool _isWorking = false;
 
-  void _castVote(String draftId, ReviewVote vote) {
-    _draftService.addReviewVote(
-      draftId: draftId,
-      voterId: _isCommitteeLead ? _committeeLeadId : _committeeMemberId,
-      vote: vote,
-      isCommitteeLead: _isCommitteeLead,
-    );
-    setState(() {});
+  Future<void> _castVote(String draftId, ReviewVote vote) async {
+    if (_isWorking) return;
+    setState(() => _isWorking = true);
+    try {
+      await _draftService.addReviewVote(
+        draftId: draftId,
+        voterId: FirebaseAuth.instance.currentUser?.uid ?? 'committee_member_1',
+        vote: vote,
+        isCommitteeLead: _isCommitteeLead,
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not record vote: $error')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isWorking = false);
+      }
+    }
   }
 
-  void _manualDecision(String draftId, ReviewVote vote) {
-    _draftService.forceCommitteeDecision(
-      draftId,
-      vote,
-      note: vote == ReviewVote.keep
-          ? 'Approved during committee review.'
-          : 'Rejected during committee review.',
-    );
-    setState(() {});
+  Future<void> _manualDecision(String draftId, ReviewVote vote) async {
+    if (_isWorking) return;
+    setState(() => _isWorking = true);
+    try {
+      await _draftService.forceCommitteeDecision(
+        draftId,
+        vote,
+        note: vote == ReviewVote.keep
+            ? 'Approved during committee review.'
+            : 'Rejected during committee review.',
+      );
+    } catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Could not apply committee decision: $error')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isWorking = false);
+      }
+    }
   }
 
   Color _statusColor(String status) {
@@ -205,6 +231,7 @@ class _ReviewPoolPageState extends State<ReviewPoolPage> {
                       .where((vote) => vote.vote == ReviewVote.abstain)
                       .length;
                   final tieBreaker = votes.any((vote) => vote.isTieBreaker);
+                  final finalized = draft.status == 'approved' || draft.status == 'rejected';
 
                   return Card(
                     child: Padding(
@@ -312,32 +339,37 @@ class _ReviewPoolPageState extends State<ReviewPoolPage> {
                             runSpacing: 10,
                             children: [
                               FilledButton.icon(
-                                onPressed: () =>
-                                    _castVote(draft.id!, ReviewVote.keep),
+                                onPressed: finalized || _isWorking
+                                    ? null
+                                    : () => _castVote(draft.id!, ReviewVote.keep),
                                 icon: const Icon(Icons.thumb_up_alt_rounded),
                                 label: Text(_voteLabel(ReviewVote.keep)),
                               ),
                               FilledButton.tonalIcon(
-                                onPressed: () =>
-                                    _castVote(draft.id!, ReviewVote.drop),
+                                onPressed: finalized || _isWorking
+                                    ? null
+                                    : () => _castVote(draft.id!, ReviewVote.drop),
                                 icon: const Icon(Icons.thumb_down_alt_rounded),
                                 label: Text(_voteLabel(ReviewVote.drop)),
                               ),
                               OutlinedButton.icon(
-                                onPressed: () =>
-                                    _castVote(draft.id!, ReviewVote.abstain),
+                                onPressed: finalized || _isWorking
+                                    ? null
+                                    : () => _castVote(draft.id!, ReviewVote.abstain),
                                 icon: const Icon(Icons.remove_circle_outline),
                                 label: Text(_voteLabel(ReviewVote.abstain)),
                               ),
                               TextButton.icon(
-                                onPressed: () =>
-                                    _manualDecision(draft.id!, ReviewVote.keep),
+                                onPressed: finalized || _isWorking
+                                    ? null
+                                    : () => _manualDecision(draft.id!, ReviewVote.keep),
                                 icon: const Icon(Icons.gavel_rounded),
                                 label: const Text('Force approve'),
                               ),
                               TextButton.icon(
-                                onPressed: () =>
-                                    _manualDecision(draft.id!, ReviewVote.drop),
+                                onPressed: finalized || _isWorking
+                                    ? null
+                                    : () => _manualDecision(draft.id!, ReviewVote.drop),
                                 icon: const Icon(Icons.gavel_outlined),
                                 label: const Text('Force reject'),
                               ),

@@ -12,8 +12,10 @@ class ApprovedQuestionsPage extends StatefulWidget {
 
 class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
   final DraftService _service = DraftService();
+  bool _isWorking = false;
 
   Future<void> _createNewVersion(QuestionBankItem item) async {
+    if (_isWorking) return;
     final controller = TextEditingController(text: item.questionText);
     final result = await showDialog<String?>(
       context: context,
@@ -40,11 +42,25 @@ class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
       ),
     );
     if (result != null && result.isNotEmpty) {
-      _service.editApprovedQuestion(item.id, newQuestionText: result);
-      setState(() {});
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('New version created')));
+      setState(() => _isWorking = true);
+      try {
+        await _service.editApprovedQuestion(item.id, newQuestionText: result);
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(const SnackBar(content: Text('New version created')));
+        }
+      } catch (error) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Could not create new version: $error')),
+          );
+        }
+      } finally {
+        if (mounted) {
+          setState(() => _isWorking = false);
+        }
+      }
     }
   }
 
@@ -233,7 +249,9 @@ class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
                           Align(
                             alignment: Alignment.centerRight,
                             child: FilledButton.icon(
-                              onPressed: () => _createNewVersion(item),
+                              onPressed: _isWorking
+                                  ? null
+                                  : () => _createNewVersion(item),
                               icon: const Icon(Icons.library_add_rounded),
                               label: const Text('Create new version'),
                             ),

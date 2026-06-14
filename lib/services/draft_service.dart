@@ -1,3 +1,5 @@
+import 'package:firebase_auth/firebase_auth.dart';
+
 import '../models/question_bank.dart';
 import '../models/question_draft.dart';
 import 'firestore_service.dart';
@@ -15,6 +17,10 @@ class DraftService {
   final List<QuestionDraft> _drafts = [];
   final Map<String, List<ReviewRecord>> _reviewRecords = {};
   final List<QuestionBankItem> _questionBank = [];
+  final List<TeacherQuota> _teacherQuotas = [];
+
+  String get currentTeacherId =>
+      FirebaseAuth.instance.currentUser?.uid ?? 'local_teacher';
 
   List<QuestionDraft> get drafts => List.unmodifiable(_drafts);
 
@@ -35,6 +41,26 @@ class DraftService {
   List<QuestionBankItem> get recentQuestionBankItems =>
       _questionBank.reversed.take(6).toList();
 
+  List<TeacherQuota> get teacherQuotas => List.unmodifiable(_teacherQuotas);
+
+  List<TeacherQuota> get activeQuotas => _teacherQuotas
+      .where((quota) => quota.teacherId == currentTeacherId)
+      .toList();
+
+  TeacherQuota? get currentTeacherQuota {
+    final list = activeQuotas;
+    if (list.isEmpty) return null;
+    return list.first;
+  }
+
+  int _submittedDraftCountForTeacher(String teacherId) {
+    return _drafts
+        .where(
+          (draft) => draft.teacherId == teacherId && draft.status != 'draft',
+        )
+        .length;
+  }
+
   List<ReviewRecord> reviewRecordsFor(String draftId) =>
       List.unmodifiable(_reviewRecords[draftId] ?? const []);
 
@@ -53,7 +79,7 @@ class DraftService {
     }
   }
 
-  void saveDraft(QuestionDraft draft) {
+  Future<void> saveDraft(QuestionDraft draft) async {
     if (draft.id == null) {
       draft.id = DateTime.now().microsecondsSinceEpoch.toString();
       _drafts.add(draft);
@@ -62,32 +88,54 @@ class DraftService {
       if (idx >= 0) _drafts[idx] = draft;
     }
     if (useFirestore) {
-      try {
-        FirestoreService().saveDraft(firestoreExamId, draft);
-      } catch (_) {}
+      await FirestoreService().saveDraft(firestoreExamId, draft);
     }
-  }
 
-  void submitDraft(String id) {
-    final idx = _drafts.indexWhere((d) => d.id == id);
-    if (idx >= 0) {
-      _drafts[idx].status = 'submitted';
-      if (useFirestore) {
-        try {
-          FirestoreService().submitDraft(firestoreExamId, id);
-        } catch (_) {}
+    final quota = currentTeacherQuota;
+    if (quota != null && quota.status != 'completed') {
+      quota.status = 'drafting';
+      quota.submittedCount = _submittedDraftCountForTeacher(currentTeacherId);
+      quota.updatedAt = DateTime.now();
+      if (quota.submittedCount >= quota.quotaCount) {
+        quota.status = 'completed';
       }
     }
   }
 
-  void addReviewVote({
+  Future<void> submitDraft(String id) async {
+    final idx = _drafts.indexWhere((d) => d.id == id);
+    if (idx >= 0) {
+      _drafts[idx].status = 'submitted';
+      _drafts[idx].teacherId = currentTeacherId;
+      if (useFirestore) {
+        await FirestoreService().submitDraft(firestoreExamId, id);
+      }
+      final quota = currentTeacherQuota;
+      if (quota != null) {
+        quota.submittedCount = _submittedDraftCountForTeacher(currentTeacherId);
+        quota.updatedAt = DateTime.now();
+        if (quota.submittedCount >= quota.quotaCount) {
+          quota.status = 'completed';
+        } else {
+          quota.status = 'drafting';
+        }
+      }
+    }
+  }
+
+  Future<void> addReviewVote({
     required String draftId,
     required String voterId,
     required ReviewVote vote,
     bool isCommitteeLead = false,
-  }) {
+  }) async {
     final draftIndex = _drafts.indexWhere((draft) => draft.id == draftId);
-    if (draftIndex < 0) return;
+    if (draftIndex < 0) return Future.value();
+
+    final draft = _drafts[draftIndex];
+    if (draft.status == 'approved' || draft.status == 'rejected') {
+      return Future.value();
+    }
 
     final votes = _reviewRecords.putIfAbsent(draftId, () => <ReviewRecord>[]);
     final existingVoteIndex = votes.indexWhere(
@@ -105,25 +153,27 @@ class DraftService {
       votes.add(record);
     }
 
-    _drafts[draftIndex].status = 'in_review';
+    draft.status = 'in_review';
     if (useFirestore) {
-      try {
-        FirestoreService().addReviewVote(
-          firestoreExamId,
-          draftId,
-          voterId,
-          vote.toString().split('.').last,
-          isTieBreaker: isCommitteeLead,
-        );
-      } catch (_) {}
+      await FirestoreService().addReviewVote(
+        firestoreExamId,
+        draftId,
+        voterId,
+        vote.toString().split('.').last,
+        isTieBreaker: isCommitteeLead,
+      );
     }
-    _applyDecisionIfReady(
+    await _applyDecisionIfReady(
       draftId,
       leadVoterId: isCommitteeLead ? voterId : null,
     );
+    return Future.value();
   }
 
-  void _applyDecisionIfReady(String draftId, {String? leadVoterId}) {
+  Future<void> _applyDecisionIfReady(
+    String draftId, {
+    String? leadVoterId,
+  }) async {
     final draftIndex = _drafts.indexWhere((draft) => draft.id == draftId);
     if (draftIndex < 0) return;
 
@@ -146,8 +196,7 @@ class DraftService {
       draft.reviewedBy = 'committee';
       draft.committeeNote =
           'Approved by majority vote ($keepVotes keep, $dropVotes drop, $abstainVotes abstain).';
-      // Promote to question bank on approval
-      promoteToQuestionBank(draft);
+      await promoteToQuestionBank(draft);
       return;
     }
 
@@ -170,6 +219,7 @@ class DraftService {
           draft.status = 'approved';
           draft.reviewedBy = leadVoterId;
           draft.committeeNote = 'Approved by Committee Lead tie-breaker.';
+          await promoteToQuestionBank(draft);
           return;
         }
         if (leadVote.vote == ReviewVote.drop) {
@@ -187,12 +237,16 @@ class DraftService {
         'Waiting for a deciding vote or Committee Lead tie-breaker.';
   }
 
-  void promoteToQuestionBank(QuestionDraft draft) {
+  Future<void> promoteToQuestionBank(QuestionDraft draft) async {
     // create a new QuestionBankItem; determine version by existing sourceDraftId
     final sourceId = draft.id ?? '';
     final existing = _questionBank
         .where((q) => q.sourceDraftId == sourceId)
         .toList();
+    if (existing.isNotEmpty) {
+      // If already promoted, don't create a duplicate entry.
+      return;
+    }
     final version = existing.isEmpty
         ? 1
         : (existing.map((e) => e.version).reduce((a, b) => a > b ? a : b) + 1);
@@ -210,16 +264,14 @@ class DraftService {
     );
     _questionBank.add(item);
     if (useFirestore) {
-      try {
-        FirestoreService().promoteToQuestionBank(firestoreExamId, draft);
-      } catch (_) {}
+      await FirestoreService().promoteToQuestionBank(firestoreExamId, draft);
     }
   }
 
-  void editApprovedQuestion(
+  Future<void> editApprovedQuestion(
     String questionId, {
     required String newQuestionText,
-  }) {
+  }) async {
     final idx = _questionBank.indexWhere((q) => q.id == questionId);
     if (idx < 0) return;
     final prev = _questionBank[idx];
@@ -241,11 +293,11 @@ class DraftService {
     _questionBank.add(newVersion);
   }
 
-  void forceCommitteeDecision(
+  Future<void> forceCommitteeDecision(
     String draftId,
     ReviewVote vote, {
     String note = 'Manual committee decision.',
-  }) {
+  }) async {
     final draftIndex = _drafts.indexWhere((draft) => draft.id == draftId);
     if (draftIndex < 0) return;
 
@@ -253,5 +305,35 @@ class DraftService {
     draft.status = vote == ReviewVote.keep ? 'approved' : 'rejected';
     draft.reviewedBy = 'committee';
     draft.committeeNote = note;
+    if (draft.status == 'approved') {
+      await promoteToQuestionBank(draft);
+    }
+  }
+
+  Future<void> assignTeacherQuota({
+    required String teacherId,
+    required String teacherName,
+    required String courseId,
+    required String courseName,
+    required int quotaCount,
+    required String assignedBy,
+    DateTime? deadline,
+    String? notes,
+  }) async {
+    final quota = TeacherQuota(
+      id: DateTime.now().microsecondsSinceEpoch.toString(),
+      teacherId: teacherId,
+      teacherName: teacherName,
+      courseId: courseId,
+      courseName: courseName,
+      quotaCount: quotaCount,
+      assignedBy: assignedBy,
+      deadline: deadline,
+      notes: notes,
+    );
+    _teacherQuotas.add(quota);
+    if (useFirestore) {
+      await FirestoreService().assignTeacherQuota(firestoreExamId, quota);
+    }
   }
 }

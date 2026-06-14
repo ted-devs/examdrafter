@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-import '../models/question_bank.dart';
 import '../models/question_draft.dart';
 
 /// Simple Firestore adapter for the exam draft flows.
@@ -11,9 +10,6 @@ class FirestoreService {
   factory FirestoreService() => _instance;
 
   final FirebaseFirestore _db = FirebaseFirestore.instance;
-
-  CollectionReference examRequests(String examId) =>
-      _db.collection('exam_requests').doc(examId).collection('meta');
 
   Future<void> saveDraft(String examId, QuestionDraft draft) async {
     final ref = _db
@@ -80,5 +76,30 @@ class FirestoreService {
       'createdAt': FieldValue.serverTimestamp(),
       'locked': true,
     });
+  }
+
+  Future<void> assignTeacherQuota(
+    String examId,
+    TeacherQuota quota,
+  ) async {
+    final quotaRef = _db
+        .collection('exam_requests')
+        .doc(examId)
+        .collection('teacher_quotas')
+        .doc(quota.id);
+    await quotaRef.set({
+      'teacherId': quota.teacherId,
+      'teacherName': quota.teacherName,
+      'courseId': quota.courseId,
+      'courseName': quota.courseName,
+      'quotaCount': quota.quotaCount,
+      'submittedCount': quota.submittedCount,
+      'status': quota.status,
+      'deadline': quota.deadline,
+      'assignedBy': quota.assignedBy,
+      'notes': quota.notes,
+      'createdAt': FieldValue.serverTimestamp(),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 }
