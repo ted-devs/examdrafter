@@ -111,7 +111,7 @@ class _AdminReviewScreenState extends State<AdminReviewScreen> {
                   ),
                   const SizedBox(height: 16),
                   DropdownButtonFormField<String>(
-                    value: _selectedSemester,
+                    initialValue: _selectedSemester,
                     decoration: const InputDecoration(labelText: 'Semester'),
                     items: const [
                       DropdownMenuItem(value: 'Fall', child: Text('Fall')),
