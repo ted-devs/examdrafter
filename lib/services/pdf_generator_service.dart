@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:math';
+import 'package:flutter/foundation.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/question.dart';
@@ -69,7 +70,7 @@ class PdfGeneratorService {
 
     return {
       'setAPdf': setAPdfBase64,
-      if (setBPdfBase64 != null) 'setBPdf': setBPdfBase64,
+      'setBPdf': ?setBPdfBase64,
     };
   }
 
@@ -88,7 +89,7 @@ class PdfGeneratorService {
         final bytes = base64Decode(logoBase64.trim().replaceAll('\n', '').replaceAll('\r', ''));
         logoImage = pw.MemoryImage(bytes);
       } catch (e) {
-        print('Error decoding logo base64: $e');
+        debugPrint('Error decoding logo base64: $e');
       }
     }
 
