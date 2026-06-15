@@ -13,7 +13,7 @@ class PdfGenerationService {
     final result = await callable.call({
       'examId': examId,
       'sets': sets,
-      if (logoUrl != null) 'logoUrl': logoUrl,
+      'logoUrl': ?logoUrl,
     });
     final data = Map<String, dynamic>.from(result.data as Map);
     final urlMap = Map<String, dynamic>.from(data['pdfUrls'] as Map);

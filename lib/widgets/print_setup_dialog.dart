@@ -28,7 +28,7 @@ class _PrintSetupDialogState extends State<PrintSetupDialog> {
   String? _error;
   Uint8List? _logoBytes;
   String _logoExtension = 'png';
-  List<String> _selectedSets = ['A'];
+  final List<String> _selectedSets = ['A'];
   bool _useExisting = true;
 
   @override
