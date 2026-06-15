@@ -1,15 +1,27 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
-class AuthService {
+abstract class BaseAuthService {
+  Stream<User?> get authStateChanges;
+  User? get currentUser;
+  Future<UserCredential> signInWithEmail(String email, String password);
+  Future<UserCredential> signUpWithEmail(String email, String password);
+  Future<void> signOut();
+}
+
+class AuthService implements BaseAuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   /// Stream monitoring authentication state changes.
+  @override
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   /// Retrieve the current user.
+  @override
   User? get currentUser => _auth.currentUser;
 
   /// Sign in using Email and Password.
+  @override
   Future<UserCredential> signInWithEmail(String email, String password) async {
     try {
       return await _auth.signInWithEmailAndPassword(
@@ -24,12 +36,26 @@ class AuthService {
   }
 
   /// Register using Email and Password.
+  @override
   Future<UserCredential> signUpWithEmail(String email, String password) async {
     try {
-      return await _auth.createUserWithEmailAndPassword(
+      final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
         password: password.trim(),
       );
+
+      if (credential.user != null) {
+        await FirebaseFirestore.instance.collection('users').doc(credential.user!.uid).set({
+          'email': email.trim(),
+          'displayName': credential.user!.displayName ?? email.trim().split('@')[0],
+          'createdAt': FieldValue.serverTimestamp(),
+          'roles': {
+            'global': 'user',
+          },
+        }, SetOptions(merge: true));
+      }
+
+      return credential;
     } on FirebaseAuthException catch (e) {
       throw _handleAuthException(e);
     } catch (e) {
@@ -38,6 +64,7 @@ class AuthService {
   }
 
   /// Sign out the current user.
+  @override
   Future<void> signOut() async {
     try {
       await _auth.signOut();
