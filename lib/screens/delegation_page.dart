@@ -186,8 +186,8 @@ class _DelegationPageState extends State<DelegationPage> {
                         children: [
                           Text('Assign quota', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800)),
                           const SizedBox(height: 16),
-                          DropdownButtonFormField<String>(
-                            value: _selectedTeacherId,
+                           DropdownButtonFormField<String>(
+                            initialValue: _selectedTeacherId,
                             items: _teachers.map((teacher) => DropdownMenuItem(value: teacher.id, child: Text(teacher.name))).toList(),
                             onChanged: (value) {
                               if (value != null) setState(() => _selectedTeacherId = value);
@@ -196,7 +196,7 @@ class _DelegationPageState extends State<DelegationPage> {
                           ),
                           const SizedBox(height: 14),
                           DropdownButtonFormField<String>(
-                            value: _selectedCourseId,
+                            initialValue: _selectedCourseId,
                             items: _courses.map((course) => DropdownMenuItem(value: course.id, child: Text(course.name))).toList(),
                             onChanged: (value) {
                               if (value != null) setState(() => _selectedCourseId = value);

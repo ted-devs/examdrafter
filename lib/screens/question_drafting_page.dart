@@ -29,7 +29,9 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
   void dispose() {
     _questionController.dispose();
     _topicController.dispose();
-    for (final c in _optionControllers) c.dispose();
+    for (final c in _optionControllers) {
+      c.dispose();
+    }
     super.dispose();
   }
 
@@ -307,7 +309,9 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
                               children: [
                                 Radio<int>(
                                   value: i,
+                                  // ignore: deprecated_member_use
                                   groupValue: _correctIndex,
+                                  // ignore: deprecated_member_use
                                   onChanged: (v) {
                                     if (v != null) {
                                       setState(() => _correctIndex = v);
@@ -344,7 +348,7 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
                       ),
                       const SizedBox(height: 18),
                       DropdownButtonFormField<String>(
-                        value: _difficulty,
+                        initialValue: _difficulty,
                         items: const ['Easy', 'Medium', 'Hard']
                             .map(
                               (d) => DropdownMenuItem(value: d, child: Text(d)),

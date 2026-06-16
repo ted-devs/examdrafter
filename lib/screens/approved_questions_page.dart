@@ -162,7 +162,7 @@ class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: bank.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                separatorBuilder: (context, index) => const SizedBox(height: 16),
                 itemBuilder: (context, i) {
                   final item = bank[i];
                   final versionColor = _versionColor(item);

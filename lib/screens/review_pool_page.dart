@@ -217,7 +217,7 @@ class _ReviewPoolPageState extends State<ReviewPoolPage> {
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: drafts.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 16),
+                separatorBuilder: (context, index) => const SizedBox(height: 16),
                 itemBuilder: (context, index) {
                   final draft = drafts[index];
                   final votes = _draftService.reviewRecordsFor(draft.id!);
