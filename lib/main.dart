@@ -8,9 +8,10 @@ import 'screens/login_page.dart';
 import 'screens/taxonomy_management_screen.dart';
 import 'screens/user_roles_screen.dart';
 import 'screens/exam_commission_form.dart';
-import 'screens/committee_delegation_screen.dart';
-import 'screens/teacher_drafting_screen.dart';
-import 'screens/committee_curation_screen.dart';
+import 'screens/delegation_page.dart';
+import 'screens/question_drafting_page.dart';
+import 'screens/review_pool_page.dart';
+import 'screens/approved_questions_page.dart';
 import 'screens/admin_review_screen.dart';
 import 'screens/compliance_dashboard.dart';
 
@@ -497,7 +498,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   subtitle: 'Set timelines and split quotas among teachers.',
                   icon: Icons.assignment_ind_rounded,
                   color: const Color(0xFF8B5CF6),
-                  onTap: () => _open(const CommitteeDelegationScreen()),
+                  onTap: () => _open(const DelegationPage()),
                 ),
               ),
               SizedBox(
@@ -507,7 +508,7 @@ class _MyHomePageState extends State<MyHomePage> {
                   subtitle: 'Collaborate on question selection and voting.',
                   icon: Icons.rate_review_rounded,
                   color: const Color(0xFFEC4899),
-                  onTap: () => _open(const CommitteeCurationScreen()),
+                  onTap: () => _open(const ReviewPoolPage()),
                 ),
               ),
               SizedBox(
@@ -518,6 +519,16 @@ class _MyHomePageState extends State<MyHomePage> {
                   icon: Icons.verified_user_rounded,
                   color: const Color(0xFF0F172A),
                   onTap: () => _open(const AdminReviewScreen()),
+                ),
+              ),
+              SizedBox(
+                width: 320,
+                child: _actionCard(
+                  title: 'Question Bank Library',
+                  subtitle: 'View the immutable bank of approved questions.',
+                  icon: Icons.library_books_rounded,
+                  color: const Color(0xFF0369A1),
+                  onTap: () => _open(const ApprovedQuestionsPage()),
                 ),
               ),
             ],
@@ -889,7 +900,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     subtitle: 'Create, edit, and submit delegated exam questions.',
                     icon: Icons.edit_note_rounded,
                     color: const Color(0xFF2563EB),
-                    onTap: () => _open(const TeacherDraftingScreen()),
+                    onTap: () => _open(const QuestionDraftingPage()),
                   ),
                 ),
               if (isCommittee) ...[
@@ -900,7 +911,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     subtitle: 'Set timelines and split quotas among teachers.',
                     icon: Icons.assignment_ind_rounded,
                     color: const Color(0xFFF59E0B),
-                    onTap: () => _open(const CommitteeDelegationScreen()),
+                    onTap: () => _open(const DelegationPage()),
                   ),
                 ),
                 SizedBox(
@@ -910,7 +921,7 @@ class _MyHomePageState extends State<MyHomePage> {
                     subtitle: 'Collaborate on question selection and voting.',
                     icon: Icons.rate_review_rounded,
                     color: const Color(0xFF10B981),
-                    onTap: () => _open(const CommitteeCurationScreen()),
+                    onTap: () => _open(const ReviewPoolPage()),
                   ),
                 ),
                 SizedBox(

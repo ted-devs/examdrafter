@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-
-import '../models/question_bank.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/question.dart';
 import '../services/draft_service.dart';
 
 class ApprovedQuestionsPage extends StatefulWidget {
@@ -11,15 +11,17 @@ class ApprovedQuestionsPage extends StatefulWidget {
 }
 
 class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
-  final DraftService _service = DraftService();
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final DraftService _draftService = DraftService();
   bool _isWorking = false;
 
-  Future<void> _createNewVersion(QuestionBankItem item) async {
+  Future<void> _createNewVersion(Question item) async {
     if (_isWorking) return;
     final controller = TextEditingController(text: item.questionText);
     final result = await showDialog<String?>(
       context: context,
       builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
         title: const Text('Create new version'),
         content: TextField(
           controller: controller,
@@ -44,11 +46,19 @@ class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
     if (result != null && result.isNotEmpty) {
       setState(() => _isWorking = true);
       try {
-        await _service.editApprovedQuestion(item.id, newQuestionText: result);
+        final newVersion = item.copyWithNewVersion(
+          newQuestionText: result,
+          newStatus: 'draft',
+        );
+        await _draftService.saveQuestion(
+          question: newVersion,
+          submit: false,
+          isRevision: true,
+        );
         if (mounted) {
           ScaffoldMessenger.of(
             context,
-          ).showSnackBar(const SnackBar(content: Text('New version created')));
+          ).showSnackBar(const SnackBar(content: Text('New version created as draft')));
         }
       } catch (error) {
         if (mounted) {
@@ -64,7 +74,7 @@ class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
     }
   }
 
-  Color _versionColor(QuestionBankItem item) {
+  Color _versionColor(Question item) {
     if (item.errorDoNotUse) {
       return const Color(0xFFEF4444);
     }
@@ -75,251 +85,186 @@ class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final bank = _service.questionBank;
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Approved Questions'),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: Center(
-              child: Chip(
-                label: Text('${bank.length} in bank'),
-                backgroundColor: const Color(0xFFDCFCE7),
-              ),
-            ),
-          ),
-        ],
+        title: const Text(
+          'Approved Questions Library',
+          style: TextStyle(fontWeight: FontWeight.bold),
+        ),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Card(
-              color: const Color(0xFF0F172A),
-              child: Padding(
-                padding: const EdgeInsets.all(22),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'Approved question library',
-                            style: Theme.of(context).textTheme.headlineSmall
-                                ?.copyWith(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.w900,
-                                ),
-                          ),
-                          const SizedBox(height: 8),
-                          Text(
-                            'This is the immutable archive. Create a new version whenever an approved question needs correction.',
-                            style: Theme.of(context).textTheme.bodyLarge
-                                ?.copyWith(
-                                  color: Colors.white.withValues(alpha: 0.9),
-                                ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
+      body: StreamBuilder<QuerySnapshot>(
+        stream: _firestore
+            .collection('questions')
+            .where('status', isEqualTo: 'approved')
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF1D4ED8)));
+          }
+
+          final List<Question> bank = snapshot.hasData
+              ? snapshot.data!.docs
+                  .map((doc) => Question.fromMap(doc.data() as Map<String, dynamic>, doc.id))
+                  .where((q) => !q.errorDoNotUse)
+                  .toList()
+              : [];
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Card(
+                  color: const Color(0xFF0F172A),
+                  child: Padding(
+                    padding: const EdgeInsets.all(22),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        _LibraryStat(
-                          label: 'Total',
-                          value: '${bank.length}',
-                          color: const Color(0xFF38BDF8),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Approved Question Library',
+                                style: Theme.of(context).textTheme.headlineSmall
+                                    ?.copyWith(
+                                      color: Colors.white,
+                                      fontWeight: FontWeight.w900,
+                                    ),
+                              ),
+                              const SizedBox(height: 8),
+                              Text(
+                                'This is the immutable archive of approved questions. Create a new version whenever an approved question needs correction.',
+                                style: Theme.of(context).textTheme.bodyLarge
+                                    ?.copyWith(
+                                      color: Colors.white.withValues(alpha: 0.9),
+                                    ),
+                              ),
+                            ],
+                          ),
                         ),
+                        const SizedBox(width: 16),
                         _LibraryStat(
                           label: 'Active',
-                          value:
-                              '${bank.where((item) => !item.errorDoNotUse).length}',
+                          value: '${bank.length}',
                           color: const Color(0xFF10B981),
-                        ),
-                        _LibraryStat(
-                          label: 'Archived',
-                          value:
-                              '${bank.where((item) => item.errorDoNotUse).length}',
-                          color: const Color(0xFFEF4444),
                         ),
                       ],
                     ),
-                  ],
+                  ),
                 ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            if (bank.isEmpty)
-              const _ApprovedEmptyState()
-            else
-              ListView.separated(
-                shrinkWrap: true,
-                physics: const NeverScrollableScrollPhysics(),
-                itemCount: bank.length,
-                separatorBuilder: (context, index) => const SizedBox(height: 16),
-                itemBuilder: (context, i) {
-                  final item = bank[i];
-                  final versionColor = _versionColor(item);
+                const SizedBox(height: 20),
+                if (bank.isEmpty)
+                  const _ApprovedEmptyState()
+                else
+                  ListView.separated(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: bank.length,
+                    separatorBuilder: (context, index) => const SizedBox(height: 16),
+                    itemBuilder: (context, i) {
+                      final item = bank[i];
+                      final versionColor = _versionColor(item);
 
-                  return Card(
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
+                      return Card(
+                        child: Padding(
+                          padding: const EdgeInsets.all(20),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Expanded(
-                                child: Text(
-                                  item.questionText,
-                                  style: Theme.of(context).textTheme.titleMedium
-                                      ?.copyWith(fontWeight: FontWeight.w900),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Chip(
-                                label: Text('v${item.version}'),
-                                backgroundColor: versionColor.withValues(
-                                  alpha: 0.12,
-                                ),
-                              ),
-                              if (item.errorDoNotUse) ...[
-                                const SizedBox(width: 8),
-                                const Chip(label: Text('ERROR - DO NOT USE')),
-                              ],
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            children: [
-                              Chip(
-                                label: Text('Difficulty: ${item.difficulty}'),
-                              ),
-                              Chip(
-                                label: Text(
-                                  item.topics.isEmpty
-                                      ? 'No topics'
-                                      : item.topics.join(', '),
-                                ),
-                              ),
-                              if (item.previousVersionId != null)
-                                Chip(
-                                  label: Text(
-                                    'Prev: ${item.previousVersionId}',
-                                  ),
-                                ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          const Text(
-                            'Options',
-                            style: TextStyle(fontWeight: FontWeight.w800),
-                          ),
-                          const SizedBox(height: 8),
-                          ...item.options.map(
-                            (option) => Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
-                              child: Row(
+                              Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Icon(
-                                    option.isCorrect
-                                        ? Icons.check_circle
-                                        : Icons.circle_outlined,
-                                    size: 18,
-                                    color: option.isCorrect
-                                        ? const Color(0xFF10B981)
-                                        : Colors.blueGrey,
+                                  Expanded(
+                                    child: Text(
+                                      item.questionText,
+                                      style: Theme.of(context).textTheme.titleMedium
+                                          ?.copyWith(fontWeight: FontWeight.w900),
+                                    ),
                                   ),
-                                  const SizedBox(width: 8),
-                                  Expanded(child: Text(option.text)),
+                                  const SizedBox(width: 12),
+                                  Chip(
+                                    label: Text('v${item.version}'),
+                                    backgroundColor: versionColor.withValues(
+                                      alpha: 0.12,
+                                    ),
+                                  ),
                                 ],
                               ),
-                            ),
+                              const SizedBox(height: 12),
+                              Column(
+                                children: item.options.map((opt) {
+                                  return Padding(
+                                    padding: const EdgeInsets.only(bottom: 6),
+                                    child: Row(
+                                      children: [
+                                        Icon(
+                                          opt.isCorrect
+                                              ? Icons.check_circle_rounded
+                                              : Icons.radio_button_off_rounded,
+                                          color: opt.isCorrect ? Colors.green : Colors.grey,
+                                          size: 16,
+                                        ),
+                                        const SizedBox(width: 8),
+                                        Expanded(
+                                          child: Text(
+                                            opt.text,
+                                            style: TextStyle(
+                                              fontWeight: opt.isCorrect ? FontWeight.bold : FontWeight.normal,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  );
+                                }).toList(),
+                              ),
+                              const SizedBox(height: 14),
+                              Row(
+                                children: [
+                                  Wrap(
+                                    spacing: 8,
+                                    children: item.topics.map((t) => Chip(label: Text(t))).toList(),
+                                  ),
+                                  const Spacer(),
+                                  IconButton.filledTonal(
+                                    onPressed: () => _createNewVersion(item),
+                                    icon: const Icon(Icons.history_rounded),
+                                    tooltip: 'Revise approved question',
+                                  ),
+                                ],
+                              ),
+                            ],
                           ),
-                          const SizedBox(height: 16),
-                          Align(
-                            alignment: Alignment.centerRight,
-                            child: FilledButton.icon(
-                              onPressed: _isWorking
-                                  ? null
-                                  : () => _createNewVersion(item),
-                              icon: const Icon(Icons.library_add_rounded),
-                              label: const Text('Create new version'),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
-              ),
-          ],
-        ),
+                        ),
+                      );
+                    },
+                  ),
+              ],
+            ),
+          );
+        },
       ),
     );
   }
 }
 
 class _LibraryStat extends StatelessWidget {
-  const _LibraryStat({
-    required this.label,
-    required this.value,
-    required this.color,
-  });
-
+  const _LibraryStat({required this.label, required this.value, required this.color});
   final String label;
   final String value;
   final Color color;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 120,
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 24,
-              fontWeight: FontWeight.w900,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            label,
-            style: TextStyle(
-              color: Colors.white.withValues(alpha: 0.9),
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 10),
-          Container(
-            width: 34,
-            height: 4,
-            decoration: BoxDecoration(
-              color: color,
-              borderRadius: BorderRadius.circular(999),
-            ),
-          ),
-        ],
-      ),
+    return Column(
+      children: [
+        Text(value, style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold)),
+        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        const SizedBox(height: 4),
+        Container(width: 24, height: 4, color: color),
+      ],
     );
   }
 }
@@ -329,44 +274,14 @@ class _ApprovedEmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Card(
+    return const Center(
       child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Row(
+        padding: EdgeInsets.symmetric(vertical: 48),
+        child: Column(
           children: [
-            Container(
-              width: 56,
-              height: 56,
-              decoration: BoxDecoration(
-                color: const Color(0xFFDCFCE7),
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: const Icon(
-                Icons.library_books_rounded,
-                color: Color(0xFF047857),
-              ),
-            ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'No approved questions yet',
-                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                      fontWeight: FontWeight.w800,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Once a review is approved, it will appear here as a locked library item.',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Colors.blueGrey.shade600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            Icon(Icons.library_books_outlined, size: 64, color: Colors.grey),
+            SizedBox(height: 16),
+            Text('No approved questions in library yet', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.grey)),
           ],
         ),
       ),
