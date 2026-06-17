@@ -972,7 +972,7 @@ class _MyHomePageState extends State<MyHomePage> {
           .doc(AuthService().currentUser?.uid ?? 'unknown')
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
