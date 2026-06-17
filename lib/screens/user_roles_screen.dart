@@ -80,9 +80,14 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
                     return _buildEmptyState(title: 'No matching users found');
                   }
 
-                  return ListView.separated(
+                  return GridView.builder(
+                    gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                      maxCrossAxisExtent: 320,
+                      mainAxisExtent: 310,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                    ),
                     itemCount: users.length,
-                    separatorBuilder: (context, idx) => const SizedBox(height: 12),
                     itemBuilder: (context, idx) {
                       final user = users[idx];
                       final globalRole = user.roles['global'] ?? 'user';
@@ -90,70 +95,104 @@ class _UserRolesScreenState extends State<UserRolesScreen> {
                       return Card(
                         child: Padding(
                           padding: const EdgeInsets.all(20.0),
-                          child: Row(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               CircleAvatar(
-                                radius: 24,
+                                radius: 28,
                                 backgroundColor: lightBlueBg,
                                 child: Text(
                                   (user.displayName ?? user.email).substring(0, 1).toUpperCase(),
-                                  style: const TextStyle(fontWeight: FontWeight.bold, color: primaryBlue, fontSize: 18),
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: primaryBlue,
+                                    fontSize: 22,
+                                  ),
                                 ),
                               ),
-                              const SizedBox(width: 16),
+                              const SizedBox(height: 12),
+                              Text(
+                                user.displayName ?? 'Unnamed User',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                  color: primaryBlue,
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                user.email,
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
+                                textAlign: TextAlign.center,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                              const SizedBox(height: 12),
+                              // Roles indicators
                               Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text(
-                                      user.displayName ?? 'Unnamed User',
-                                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: primaryBlue),
-                                    ),
-                                    const SizedBox(height: 4),
-                                    Text(
-                                      user.email,
-                                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
-                                    ),
-                                    const SizedBox(height: 10),
-                                    // Roles indicators
-                                    Wrap(
-                                      spacing: 8,
-                                      runSpacing: 4,
-                                      children: [
-                                        // Global Role chip
+                                child: SingleChildScrollView(
+                                  child: Wrap(
+                                    spacing: 6,
+                                    runSpacing: 4,
+                                    alignment: WrapAlignment.center,
+                                    children: [
+                                      // Global Role chip
+                                      Chip(
+                                        label: Text(
+                                          'Global: ${globalRole.replaceAll('_', ' ').toUpperCase()}',
+                                          style: const TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.bold,
+                                            color: Colors.white,
+                                          ),
+                                        ),
+                                        backgroundColor: _getRoleColor(globalRole),
+                                        side: BorderSide.none,
+                                        padding: EdgeInsets.zero,
+                                        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                                      ),
+                                      // Context specific roles count
+                                      if (user.roles.length > 1)
                                         Chip(
                                           label: Text(
-                                            'Global: ${globalRole.replaceAll('_', ' ').toUpperCase()}',
-                                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.bold, color: Colors.white),
+                                            '${user.roles.length - 1} Course Roles',
+                                            style: const TextStyle(
+                                              fontSize: 10,
+                                              fontWeight: FontWeight.w600,
+                                              color: primaryBlue,
+                                            ),
                                           ),
-                                          backgroundColor: _getRoleColor(globalRole),
+                                          backgroundColor: lightBlueBg,
                                           side: BorderSide.none,
                                           padding: EdgeInsets.zero,
                                           materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                                         ),
-                                        // Context specific roles count
-                                        if (user.roles.length > 1)
-                                          Chip(
-                                            label: Text(
-                                              '${user.roles.length - 1} Course Roles',
-                                              style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: primaryBlue),
-                                            ),
-                                            backgroundColor: lightBlueBg,
-                                            side: BorderSide.none,
-                                            padding: EdgeInsets.zero,
-                                            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                                          ),
-                                      ],
-                                    ),
-                                  ],
+                                    ],
+                                  ),
                                 ),
                               ),
-                              ElevatedButton.icon(
-                                icon: const Icon(Icons.shield_rounded, size: 16),
-                                label: const Text('Manage Roles'),
-                                onPressed: globalRole == 'super_admin'
-                                    ? null
-                                    : () => _showManageRolesDialog(user),
+                              const SizedBox(height: 16),
+                              SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                  icon: const Icon(Icons.shield_rounded, size: 16),
+                                  label: const Text('Manage Roles'),
+                                  onPressed: globalRole == 'super_admin'
+                                      ? null
+                                      : () => _showManageRolesDialog(user),
+                                  style: ElevatedButton.styleFrom(
+                                    padding: const EdgeInsets.symmetric(vertical: 12),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                  ),
+                                ),
                               ),
                             ],
                           ),
