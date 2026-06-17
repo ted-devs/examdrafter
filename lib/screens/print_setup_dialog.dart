@@ -7,6 +7,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import '../services/pdf_generator_service.dart';
 import '../utils/download_helper.dart';
+import '../utils/pdf_preview_helper.dart';
 import '../models/question.dart';
 import '../models/exam_request.dart';
 import '../models/exam_curation.dart';
@@ -117,94 +118,96 @@ class _PrintSetupDialogState extends State<PrintSetupDialog> {
     }
   }
 
+  Future<Map<String, String?>?> _loadAndGeneratePdfs() async {
+    final logoBase64 = _getLogoBase64();
+
+    // 1. Fetch Exam Request
+    setState(() => _statusMessage = 'Loading exam request details...');
+    final reqSnap = await _firestore.collection('exam_requests').doc(widget.examRequestId).get();
+    if (!reqSnap.exists) {
+      throw Exception('Exam Request not found in Firestore.');
+    }
+    final req = ExamRequest.fromMap(reqSnap.data()!, reqSnap.id);
+
+    // 2. Fetch Curation Details
+    setState(() => _statusMessage = 'Loading curation question list...');
+    final curationSnap = await _firestore.collection('curations').doc(widget.examRequestId).get();
+    if (!curationSnap.exists) {
+      throw Exception('Exam Curation record not found in Firestore.');
+    }
+    final curation = ExamCuration.fromMap(curationSnap.data()!, curationSnap.id);
+    final List<String> selectedIds = curation.selectedQuestionIds;
+
+    if (selectedIds.isEmpty) {
+      throw Exception('No curated questions are present in this request.');
+    }
+
+    // 3. Fetch Course details
+    setState(() => _statusMessage = 'Fetching course information...');
+    final courseSnap = await _firestore.collection('courses').doc(req.courseId).get();
+    final Map<String, dynamic> courseInfo = {
+      'code': req.courseId,
+      'name': 'Unknown Course',
+    };
+    if (courseSnap.exists) {
+      final cData = courseSnap.data()!;
+      courseInfo['code'] = cData['code'] ?? req.courseId;
+      courseInfo['name'] = cData['name'] ?? 'Unknown Course';
+    }
+
+    // 4. Fetch Questions
+    setState(() => _statusMessage = 'Loading question contents...');
+    final List<Question> fetchedQuestions = [];
+    for (final qId in selectedIds) {
+      final qSnap = await _firestore.collection('questions').doc(qId).get();
+      if (qSnap.exists) {
+        fetchedQuestions.add(Question.fromMap(qSnap.data()!, qSnap.id));
+      }
+    }
+
+    if (fetchedQuestions.isEmpty) {
+      throw Exception('Could not fetch any of the curated questions from Firestore.');
+    }
+
+    // 5. Generate PDFs
+    setState(() => _statusMessage = 'Rendering PDF files locally...');
+    return await PdfGeneratorService.generateLocalPdfs(
+      courseInfo: courseInfo,
+      requestInfo: {
+        'section': req.section,
+        'semester': req.semester,
+        'year': req.year,
+      },
+      questions: fetchedQuestions,
+      generateTwoSets: _generateTwoSets,
+      logoBase64: logoBase64,
+    );
+  }
+
   Future<void> _generatePdfs() async {
     setState(() {
       _isProcessing = true;
       _statusMessage = 'Initiating PDF Generation...';
     });
 
-    final logoBase64 = _getLogoBase64();
-    await _generateLocalPdfs(logoBase64);
-  }
-
-  Future<void> _generateLocalPdfs(String? logoBase64) async {
     try {
-      // 1. Fetch Exam Request
-      setState(() => _statusMessage = 'Loading exam request details...');
-      final reqSnap = await _firestore.collection('exam_requests').doc(widget.examRequestId).get();
-      if (!reqSnap.exists) {
-        throw Exception('Exam Request not found in Firestore.');
-      }
-      final req = ExamRequest.fromMap(reqSnap.data()!, reqSnap.id);
+      final results = await _loadAndGeneratePdfs();
+      if (results != null) {
+        setState(() => _statusMessage = 'Dispatching files to browser...');
+        final String setAPdf = results['setAPdf']!;
+        downloadPdf(setAPdf, 'Exam_Set_A.pdf');
 
-      // 2. Fetch Curation Details
-      setState(() => _statusMessage = 'Loading curation question list...');
-      final curationSnap = await _firestore.collection('curations').doc(widget.examRequestId).get();
-      if (!curationSnap.exists) {
-        throw Exception('Exam Curation record not found in Firestore.');
-      }
-      final curation = ExamCuration.fromMap(curationSnap.data()!, curationSnap.id);
-      final List<String> selectedIds = curation.selectedQuestionIds;
-
-      if (selectedIds.isEmpty) {
-        throw Exception('No curated questions are present in this request.');
-      }
-
-      // 3. Fetch Course details
-      setState(() => _statusMessage = 'Fetching course information...');
-      final courseSnap = await _firestore.collection('courses').doc(req.courseId).get();
-      final Map<String, dynamic> courseInfo = {
-        'code': req.courseId,
-        'name': 'Unknown Course',
-      };
-      if (courseSnap.exists) {
-        final cData = courseSnap.data()!;
-        courseInfo['code'] = cData['code'] ?? req.courseId;
-        courseInfo['name'] = cData['name'] ?? 'Unknown Course';
-      }
-
-      // 4. Fetch Questions
-      setState(() => _statusMessage = 'Loading question contents...');
-      final List<Question> fetchedQuestions = [];
-      for (final qId in selectedIds) {
-        final qSnap = await _firestore.collection('questions').doc(qId).get();
-        if (qSnap.exists) {
-          fetchedQuestions.add(Question.fromMap(qSnap.data()!, qSnap.id));
+        if (_generateTwoSets && results['setBPdf'] != null) {
+          final String setBPdf = results['setBPdf']!;
+          downloadPdf(setBPdf, 'Exam_Set_B.pdf');
         }
-      }
 
-      if (fetchedQuestions.isEmpty) {
-        throw Exception('Could not fetch any of the curated questions from Firestore.');
-      }
-
-      // 5. Generate PDFs
-      setState(() => _statusMessage = 'Rendering PDF files locally...');
-      final results = await PdfGeneratorService.generateLocalPdfs(
-        courseInfo: courseInfo,
-        requestInfo: {
-          'section': req.section,
-          'semester': req.semester,
-          'year': req.year,
-        },
-        questions: fetchedQuestions,
-        generateTwoSets: _generateTwoSets,
-        logoBase64: logoBase64,
-      );
-
-      setState(() => _statusMessage = 'Dispatching files to browser...');
-      final String setAPdf = results['setAPdf']!;
-      downloadPdf(setAPdf, 'Exam_Set_A.pdf');
-
-      if (_generateTwoSets && results['setBPdf'] != null) {
-        final String setBPdf = results['setBPdf']!;
-        downloadPdf(setBPdf, 'Exam_Set_B.pdf');
-      }
-
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Exam PDFs generated and downloaded successfully.')),
-        );
-        Navigator.pop(context);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Exam PDFs generated and downloaded successfully.')),
+          );
+          Navigator.pop(context);
+        }
       }
     } catch (e) {
       if (mounted) {
@@ -214,6 +217,44 @@ class _PrintSetupDialogState extends State<PrintSetupDialog> {
         });
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Generation failed: $e')),
+        );
+      }
+    }
+  }
+
+  Future<void> _previewPdfs() async {
+    setState(() {
+      _isProcessing = true;
+      _statusMessage = 'Initiating PDF Generation...';
+    });
+
+    try {
+      final results = await _loadAndGeneratePdfs();
+      if (results != null) {
+        setState(() => _statusMessage = 'Opening preview in new tab...');
+        final String setAPdf = results['setAPdf']!;
+        previewPdf(setAPdf, 'Exam_Set_A_Preview.pdf');
+
+        if (_generateTwoSets && results['setBPdf'] != null) {
+          final String setBPdf = results['setBPdf']!;
+          previewPdf(setBPdf, 'Exam_Set_B_Preview.pdf');
+        }
+
+        if (mounted) {
+          setState(() {
+            _isProcessing = false;
+            _statusMessage = 'Preview opened successfully.';
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isProcessing = false;
+          _statusMessage = 'Preview failed: $e';
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Preview failed: $e')),
         );
       }
     }
@@ -355,6 +396,15 @@ class _PrintSetupDialogState extends State<PrintSetupDialog> {
         TextButton(
           onPressed: _isProcessing ? null : () => Navigator.pop(context),
           child: const Text('Cancel'),
+        ),
+        OutlinedButton(
+          onPressed: _isProcessing ? null : _previewPdfs,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: primaryBlue,
+            side: const BorderSide(color: primaryBlue),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          ),
+          child: const Text('Preview'),
         ),
         ElevatedButton(
           onPressed: _isProcessing ? null : _generatePdfs,
