@@ -5,7 +5,7 @@ abstract class BaseAuthService {
   Stream<User?> get authStateChanges;
   User? get currentUser;
   Future<UserCredential> signInWithEmail(String email, String password);
-  Future<UserCredential> signUpWithEmail(String email, String password);
+  Future<UserCredential> signUpWithEmail(String email, String password, {String? displayName});
   Future<void> signOut();
 }
 
@@ -37,7 +37,7 @@ class AuthService implements BaseAuthService {
 
   /// Register using Email and Password.
   @override
-  Future<UserCredential> signUpWithEmail(String email, String password) async {
+  Future<UserCredential> signUpWithEmail(String email, String password, {String? displayName}) async {
     try {
       final credential = await _auth.createUserWithEmailAndPassword(
         email: email.trim(),
@@ -45,9 +45,14 @@ class AuthService implements BaseAuthService {
       );
 
       if (credential.user != null) {
+        if (displayName != null && displayName.trim().isNotEmpty) {
+          try {
+            await credential.user!.updateDisplayName(displayName.trim());
+          } catch (_) {}
+        }
         await FirebaseFirestore.instance.collection('users').doc(credential.user!.uid).set({
           'email': email.trim(),
-          'displayName': credential.user!.displayName ?? email.trim().split('@')[0],
+          'displayName': displayName?.trim() ?? credential.user!.displayName ?? email.trim().split('@')[0],
           'createdAt': FieldValue.serverTimestamp(),
           'roles': {
             'global': 'user',

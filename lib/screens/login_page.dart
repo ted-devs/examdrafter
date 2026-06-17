@@ -16,6 +16,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _confirmPasswordController = TextEditingController();
+  final TextEditingController _nameController = TextEditingController();
 
   bool _isLoginMode = true;
   bool _isLoading = false;
@@ -46,6 +47,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     _emailController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
+    _nameController.dispose();
     _fadeController.dispose();
     super.dispose();
   }
@@ -54,6 +56,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
     setState(() {
       _isLoginMode = !_isLoginMode;
       _errorMessage = null;
+      _nameController.clear();
       _passwordController.clear();
       _confirmPasswordController.clear();
     });
@@ -82,6 +85,7 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
         await _authService.signUpWithEmail(
           _emailController.text,
           _passwordController.text,
+          displayName: _nameController.text.trim(),
         );
       }
     } catch (e) {
@@ -163,8 +167,11 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           // App Branding
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            crossAxisAlignment: WrapCrossAlignment.center,
+                            spacing: 16,
+                            runSpacing: 8,
                             children: [
                               Container(
                                 padding: const EdgeInsets.all(12),
@@ -178,7 +185,6 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                                   size: 32,
                                 ),
                               ),
-                              const SizedBox(width: 16),
                               Text(
                                 'Exam Drafter',
                                 style: theme.textTheme.headlineMedium?.copyWith(
@@ -227,6 +233,40 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                               ),
                             ),
                             const SizedBox(height: 24),
+                          ],
+
+                          // Full Name field (Signup only)
+                          if (!_isLoginMode) ...[
+                            TextFormField(
+                              controller: _nameController,
+                              keyboardType: TextInputType.name,
+                              textInputAction: TextInputAction.next,
+                              decoration: InputDecoration(
+                                labelText: 'Full Name',
+                                prefixIcon: const Icon(Icons.person_outline, color: primaryBlue),
+                                filled: true,
+                                fillColor: lightBlueBg.withValues(alpha: 0.3),
+                                border: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide(color: primaryBlue.withValues(alpha: 0.1)),
+                                ),
+                                enabledBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: BorderSide(color: primaryBlue.withValues(alpha: 0.15)),
+                                ),
+                                focusedBorder: OutlineInputBorder(
+                                  borderRadius: BorderRadius.circular(14),
+                                  borderSide: const BorderSide(color: accentBlue, width: 2),
+                                ),
+                              ),
+                              validator: (value) {
+                                if (value == null || value.trim().isEmpty) {
+                                  return 'Please enter your name.';
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 20),
                           ],
 
                           // Email field
@@ -395,8 +435,10 @@ class _LoginPageState extends State<LoginPage> with SingleTickerProviderStateMix
                           const SizedBox(height: 24),
 
                           // Toggle mode button
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.center,
+                          Wrap(
+                            alignment: WrapAlignment.center,
+                            spacing: 4,
+                            runSpacing: 4,
                             children: [
                               Text(
                                 _isLoginMode

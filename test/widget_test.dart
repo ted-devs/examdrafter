@@ -24,7 +24,7 @@ class FakeAuthService implements BaseAuthService {
   }
 
   @override
-  Future<UserCredential> signUpWithEmail(String email, String password) async {
+  Future<UserCredential> signUpWithEmail(String email, String password, {String? displayName}) async {
     throw UnimplementedError();
   }
 
@@ -34,6 +34,13 @@ class FakeAuthService implements BaseAuthService {
 
 void main() {
   testWidgets('LoginPage loads and displays components', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
     // Build the LoginPage directly using FakeAuthService to bypass FirebaseAuth instance.
     await tester.pumpWidget(
       MaterialApp(
@@ -45,5 +52,29 @@ void main() {
     expect(find.text('Sign in to access your portal'), findsOneWidget);
     expect(find.text('Email Address'), findsOneWidget);
     expect(find.text('Password'), findsOneWidget);
+  });
+
+  testWidgets('LoginPage in registration mode displays name field and confirm password field', (WidgetTester tester) async {
+    tester.view.physicalSize = const Size(1280, 800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(() {
+      tester.view.resetPhysicalSize();
+      tester.view.resetDevicePixelRatio();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LoginPage(authService: FakeAuthService()),
+      ),
+    );
+
+    // Tap the register button to switch modes
+    await tester.tap(find.text('Register'));
+    await tester.pumpAndSettle();
+
+    // Verify registration mode fields are visible
+    expect(find.text('Create an account to get started'), findsOneWidget);
+    expect(find.text('Full Name'), findsOneWidget);
+    expect(find.text('Confirm Password'), findsOneWidget);
   });
 }
