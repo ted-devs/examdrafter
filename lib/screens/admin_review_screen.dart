@@ -412,11 +412,23 @@ class _AdminReviewScreenState extends State<AdminReviewScreen> {
       stream: _firestore
           .collection('exam_requests')
           .where('status', isEqualTo: status.toJson())
-          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: primaryBlue));
+        }
+
+        if (snapshot.hasError) {
+          return Center(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Text(
+                'Error: ${snapshot.error}',
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
+              ),
+            ),
+          );
         }
 
         if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
@@ -436,6 +448,7 @@ class _AdminReviewScreenState extends State<AdminReviewScreen> {
         final list = docs
             .map((doc) => ExamRequest.fromMap(doc.data() as Map<String, dynamic>, doc.id))
             .toList();
+        list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
 
         return ListView.separated(
           padding: padding,

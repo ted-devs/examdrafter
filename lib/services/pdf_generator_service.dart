@@ -1,11 +1,31 @@
 import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart' show NetworkAssetBundle;
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/question.dart';
 
 class PdfGeneratorService {
+  static pw.Font? _cachedRegularFont;
+  static pw.Font? _cachedBoldFont;
+
+  static Future<void> _loadFonts() async {
+    if (_cachedRegularFont != null && _cachedBoldFont != null) return;
+    try {
+      final regularUri = Uri.parse('https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Regular.ttf');
+      final boldUri = Uri.parse('https://github.com/google/fonts/raw/main/apache/roboto/static/Roboto-Bold.ttf');
+      
+      final regularData = await NetworkAssetBundle(Uri.parse('')).load(regularUri.toString());
+      final boldData = await NetworkAssetBundle(Uri.parse('')).load(boldUri.toString());
+      
+      _cachedRegularFont = pw.Font.ttf(regularData);
+      _cachedBoldFont = pw.Font.ttf(boldData);
+    } catch (e) {
+      debugPrint('Failed to load online Unicode fonts: $e. Falling back to default PDF fonts.');
+    }
+  }
+
   // Fisher-Yates shuffle
   static List<T> _shuffle<T>(List<T> list) {
     final random = Random();
@@ -19,13 +39,16 @@ class PdfGeneratorService {
     return result;
   }
 
-  static Future<Map<String, String>> generateLocalPdfs({
+  static Future<Map<String, String?>> generateLocalPdfs({
     required Map<String, dynamic> courseInfo,
     required Map<String, dynamic> requestInfo,
     required List<Question> questions,
     required bool generateTwoSets,
     String? logoBase64,
   }) async {
+    // Load Unicode fonts once before rendering sets
+    await _loadFonts();
+
     // Generate Set A (Standard)
     final setABytes = await _generateSingleSetPdf(
       courseInfo: courseInfo,
@@ -70,8 +93,26 @@ class PdfGeneratorService {
 
     return {
       'setAPdf': setAPdfBase64,
-      'setBPdf': ?setBPdfBase64,
+      'setBPdf': setBPdfBase64,
     };
+  }
+
+  static String _sanitizeText(String text) {
+    return text
+        .replaceAll('“', '"')
+        .replaceAll('”', '"')
+        .replaceAll('‘', "'")
+        .replaceAll('’', "'")
+        .replaceAll('–', '-')
+        .replaceAll('—', '-')
+        .replaceAll('\u2013', '-') // en dash
+        .replaceAll('\u2014', '-') // em dash
+        .replaceAll('\u2018', "'") // left single quote
+        .replaceAll('\u2019', "'") // right single quote
+        .replaceAll('\u201c', '"') // left double quote
+        .replaceAll('\u201d', '"') // right double quote
+        .replaceAll('\u00a0', ' ') // non-breaking space
+        .replaceAll('\u200b', ''); // zero-width space
   }
 
   static Future<List<int>> _generateSingleSetPdf({
@@ -81,7 +122,14 @@ class PdfGeneratorService {
     required String setName,
     String? logoBase64,
   }) async {
-    final pdf = pw.Document();
+    pw.ThemeData? theme;
+    if (_cachedRegularFont != null) {
+      theme = pw.ThemeData.withFont(
+        base: _cachedRegularFont!,
+        bold: _cachedBoldFont,
+      );
+    }
+    final pdf = pw.Document(theme: theme);
 
     pw.MemoryImage? logoImage;
     if (logoBase64 != null && logoBase64.isNotEmpty) {
@@ -92,6 +140,12 @@ class PdfGeneratorService {
         debugPrint('Error decoding logo base64: $e');
       }
     }
+
+    final String courseCode = _sanitizeText(courseInfo['code'] ?? '');
+    final String courseName = _sanitizeText(courseInfo['name'] ?? '');
+    final String section = _sanitizeText(requestInfo['section'] ?? '');
+    final String semester = _sanitizeText(requestInfo['semester'] ?? 'N/A');
+    final String year = _sanitizeText(requestInfo['year'] ?? 'N/A');
 
     pdf.addPage(
       pw.MultiPage(
@@ -131,17 +185,17 @@ class PdfGeneratorService {
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Course: ${courseInfo['code'] ?? ''} - ${courseInfo['name'] ?? ''}',
+                    pw.Text('Course: $courseCode - $courseName',
                         style: const pw.TextStyle(fontSize: 10)),
                     pw.SizedBox(height: 4),
-                    pw.Text('Section: ${requestInfo['section'] ?? ''}',
+                    pw.Text('Section: $section',
                         style: const pw.TextStyle(fontSize: 10)),
                   ],
                 ),
                 pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Term: ${requestInfo['semester'] ?? 'N/A'} ${requestInfo['year'] ?? 'N/A'}',
+                    pw.Text('Term: $semester $year',
                         style: const pw.TextStyle(fontSize: 10)),
                     pw.SizedBox(height: 4),
                     pw.Text('Time Allowed: 2 Hours', style: const pw.TextStyle(fontSize: 10)),
@@ -157,6 +211,7 @@ class PdfGeneratorService {
             ...questions.asMap().entries.map((entry) {
               final index = entry.key;
               final q = entry.value;
+              final String qText = _sanitizeText(q.questionText);
 
               return pw.Padding(
                 padding: const pw.EdgeInsets.only(bottom: 15),
@@ -171,7 +226,7 @@ class PdfGeneratorService {
                             style: pw.TextStyle(fontWeight: pw.FontWeight.bold, fontSize: 11),
                           ),
                           pw.TextSpan(
-                            text: q.questionText,
+                            text: qText,
                             style: const pw.TextStyle(fontSize: 11),
                           ),
                         ],
@@ -181,11 +236,12 @@ class PdfGeneratorService {
                     ...q.options.asMap().entries.map((optEntry) {
                       final oIdx = optEntry.key;
                       final option = optEntry.value;
+                      final String oText = _sanitizeText(option.text);
                       final optionPrefix = String.fromCharCode(65 + oIdx); // A, B, C, D, E
                       return pw.Padding(
                         padding: const pw.EdgeInsets.only(left: 15, bottom: 4),
                         child: pw.Text(
-                          '$optionPrefix) ${option.text}',
+                          '$optionPrefix) $oText',
                           style: const pw.TextStyle(fontSize: 10),
                         ),
                       );
@@ -220,10 +276,11 @@ class PdfGeneratorService {
                 final q = entry.value;
                 final correctIdx = q.options.indexWhere((opt) => opt.isCorrect);
                 final correctOptionLetter = correctIdx != -1 ? String.fromCharCode(65 + correctIdx) : 'N/A';
+                final String topicsText = _sanitizeText(q.topics.join(', '));
                 return pw.Padding(
                   padding: const pw.EdgeInsets.only(bottom: 8),
                   child: pw.Text(
-                    'Question ${index + 1}:  [ $correctOptionLetter ]  -  (Topic: ${q.topics.join(', ')})',
+                    'Question ${index + 1}:  [ $correctOptionLetter ]  -  (Topic: $topicsText)',
                     style: const pw.TextStyle(fontSize: 11),
                   ),
                 );

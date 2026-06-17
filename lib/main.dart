@@ -584,70 +584,83 @@ class _MyHomePageState extends State<MyHomePage> {
                   return Padding(
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Card(
-                      child: Padding(
-                        padding: const EdgeInsets.all(18),
-                        child: Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Container(
-                              width: 44,
-                              height: 44,
-                              decoration: BoxDecoration(
-                                color: statusColor.withValues(alpha: 0.12),
-                                borderRadius: BorderRadius.circular(14),
+                      clipBehavior: Clip.antiAlias,
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(24),
+                        onTap: () {
+                          if (status == 'submitted_to_admin' || status == 'approved') {
+                            _open(const AdminReviewScreen());
+                          } else if (status == 'commissioned' || status == 'returned_for_revision' || status == 'delegated') {
+                            _open(const DelegationPage());
+                          } else {
+                            _open(const ReviewPoolPage());
+                          }
+                        },
+                        child: Padding(
+                          padding: const EdgeInsets.all(18),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Container(
+                                width: 44,
+                                height: 44,
+                                decoration: BoxDecoration(
+                                  color: statusColor.withValues(alpha: 0.12),
+                                  borderRadius: BorderRadius.circular(14),
+                                ),
+                                child: Icon(
+                                  Icons.assignment_rounded,
+                                  color: statusColor,
+                                ),
                               ),
-                              child: Icon(
-                                Icons.assignment_rounded,
-                                color: statusColor,
-                              ),
-                            ),
-                            const SizedBox(width: 14),
-                            Expanded(
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Row(
-                                    children: [
-                                      Expanded(
-                                        child: FutureBuilder<DocumentSnapshot>(
-                                          future: _firestore.collection('courses').doc(courseId).get(),
-                                          builder: (context, courseSnapshot) {
-                                            String courseText = courseId;
-                                            if (courseSnapshot.hasData && courseSnapshot.data!.exists) {
-                                              final cData = courseSnapshot.data!.data() as Map<String, dynamic>?;
-                                              courseText = '${cData?['code'] ?? ''} - ${cData?['name'] ?? ''}';
-                                            }
-                                            return Text(
-                                              'Exam request for $courseText',
-                                              maxLines: 2,
-                                              overflow: TextOverflow.ellipsis,
-                                              style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                                fontWeight: FontWeight.w800,
-                                              ),
-                                            );
-                                          },
+                              const SizedBox(width: 14),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Row(
+                                      children: [
+                                        Expanded(
+                                          child: FutureBuilder<DocumentSnapshot>(
+                                            future: _firestore.collection('courses').doc(courseId).get(),
+                                            builder: (context, courseSnapshot) {
+                                              String courseText = courseId;
+                                              if (courseSnapshot.hasData && courseSnapshot.data!.exists) {
+                                                final cData = courseSnapshot.data!.data() as Map<String, dynamic>?;
+                                                courseText = '${cData?['code'] ?? ''} - ${cData?['name'] ?? ''}';
+                                              }
+                                              return Text(
+                                                'Exam request for $courseText',
+                                                maxLines: 2,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                                  fontWeight: FontWeight.w800,
+                                                ),
+                                              );
+                                            },
+                                          ),
                                         ),
-                                      ),
-                                      const SizedBox(width: 12),
-                                      Chip(
-                                        label: Text(status.toString().toUpperCase()),
-                                        backgroundColor: statusColor.withValues(alpha: 0.12),
-                                      ),
-                                    ],
-                                  ),
-                                  const SizedBox(height: 8),
-                                  Wrap(
-                                    spacing: 10,
-                                    runSpacing: 8,
-                                    children: [
-                                      Chip(label: Text('Section: $section')),
-                                      Chip(label: Text('$totalQ questions quota')),
-                                    ],
-                                  ),
-                                ],
+                                        const SizedBox(width: 12),
+                                        Chip(
+                                          label: Text(status.toString().toUpperCase()),
+                                          backgroundColor: statusColor.withValues(alpha: 0.12),
+                                        ),
+                                      ],
+                                    ),
+                                    const SizedBox(height: 8),
+                                    Wrap(
+                                      spacing: 10,
+                                      runSpacing: 8,
+                                      children: [
+                                        Chip(label: Text('Section: $section')),
+                                        Chip(label: Text('$totalQ questions quota')),
+                                      ],
+                                    ),
+                                  ],
+                                ),
                               ),
-                            ),
-                          ],
+                            ],
+                          ),
                         ),
                       ),
                     ),
