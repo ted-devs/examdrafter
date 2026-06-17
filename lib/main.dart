@@ -1137,111 +1137,157 @@ class _MyHomePageState extends State<MyHomePage> {
         // Clean out empty placeholders from list
         menuButtons.removeWhere((w) => w is SizedBox);
 
-        // Build overflow popup if screen is narrow
-        Widget? overflowMenu;
-        if (!showFullMenu && !showCompactMenu && menuButtons.isNotEmpty) {
-          overflowMenu = PopupMenuButton<VoidCallback>(
-            tooltip: 'Navigation Menu',
-            icon: const Icon(Icons.menu_rounded),
-            onSelected: (callback) => callback(),
-            itemBuilder: (context) {
-              final List<PopupMenuEntry<VoidCallback>> items = [];
-              if (isSuperAdmin) {
-                items.add(
-                  PopupMenuItem(
-                    value: () => _open(const TaxonomyManagementScreen()),
-                    child: const ListTile(
-                      leading: Icon(Icons.business_rounded),
-                      title: Text('Taxonomy Management'),
-                    ),
-                  ),
-                );
-              }
-              if (isAnyAdmin) {
-                items.addAll([
-                  PopupMenuItem(
-                    value: () => _open(const UserRolesScreen()),
-                    child: const ListTile(
-                      leading: Icon(Icons.shield_rounded),
-                      title: Text('User Role Management'),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: () => _open(const ExamCommissionForm()),
-                    child: const ListTile(
-                      leading: Icon(Icons.assignment_rounded),
-                      title: Text('Commission Exam'),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: () => _open(const DelegationPage()),
-                    child: const ListTile(
-                      leading: Icon(Icons.assignment_ind_rounded),
-                      title: Text('Committee Delegation'),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: () => _open(const ReviewPoolPage()),
-                    child: const ListTile(
-                      leading: Icon(Icons.rate_review_rounded),
-                      title: Text('Curation Board'),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: () => _open(const AdminReviewScreen()),
-                    child: const ListTile(
-                      leading: Icon(Icons.verified_user_rounded),
-                      title: Text('Exam Review Board'),
-                    ),
-                  ),
-                  PopupMenuItem(
-                    value: () => _open(const ApprovedQuestionsPage()),
-                    child: const ListTile(
-                      leading: Icon(Icons.library_books_rounded),
-                      title: Text('Question Bank Library'),
-                    ),
-                  ),
-                ]);
-              } else {
-                if (isTeacher) {
-                  items.add(
-                    PopupMenuItem(
-                      value: () => _open(const QuestionDraftingPage()),
-                      child: const ListTile(
-                        leading: Icon(Icons.edit_note_rounded),
-                        title: Text('MCQ Drafting Workspace'),
+        // Build mobile drawer if screen is narrow
+        Widget? mobileDrawer;
+        if (!showFullMenu && !showCompactMenu) {
+          mobileDrawer = Drawer(
+            child: SafeArea(
+              child: Column(
+                children: [
+                  UserAccountsDrawerHeader(
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        colors: [Color(0xFF1D4ED8), Color(0xFF2563EB)],
                       ),
                     ),
-                  );
-                }
-                if (isCommittee) {
-                  items.addAll([
-                    PopupMenuItem(
-                      value: () => _open(const DelegationPage()),
-                      child: const ListTile(
-                        leading: Icon(Icons.assignment_ind_rounded),
-                        title: Text('Committee Delegation'),
+                    accountName: Text(
+                      displayName,
+                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                    ),
+                    accountEmail: Text(
+                      AuthService().currentUser?.email ?? '',
+                      style: TextStyle(color: Colors.white.withValues(alpha: 0.8)),
+                    ),
+                    currentAccountPicture: CircleAvatar(
+                      backgroundColor: Colors.white,
+                      child: Text(
+                        displayName.isNotEmpty ? displayName.substring(0, 1).toUpperCase() : 'U',
+                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF1D4ED8)),
                       ),
                     ),
-                    PopupMenuItem(
-                      value: () => _open(const ReviewPoolPage()),
-                      child: const ListTile(
-                        leading: Icon(Icons.rate_review_rounded),
-                        title: Text('Curation Board'),
-                      ),
+                  ),
+                  Expanded(
+                    child: ListView(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      children: [
+                        if (isSuperAdmin)
+                          ListTile(
+                            leading: const Icon(Icons.business_rounded, color: Color(0xFF1D4ED8)),
+                            title: const Text('Taxonomy Management'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _open(const TaxonomyManagementScreen());
+                            },
+                          ),
+                        if (isAnyAdmin) ...[
+                          ListTile(
+                            leading: const Icon(Icons.shield_rounded, color: Color(0xFF1D4ED8)),
+                            title: const Text('User Role Management'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _open(const UserRolesScreen());
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.assignment_rounded, color: Color(0xFF1D4ED8)),
+                            title: const Text('Commission Exam'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _open(const ExamCommissionForm());
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.assignment_ind_rounded, color: Color(0xFF1D4ED8)),
+                            title: const Text('Committee Delegation'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _open(const DelegationPage());
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.rate_review_rounded, color: Color(0xFF1D4ED8)),
+                            title: const Text('Curation Board'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _open(const ReviewPoolPage());
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.verified_user_rounded, color: Color(0xFF1D4ED8)),
+                            title: const Text('Exam Review Board'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _open(const AdminReviewScreen());
+                            },
+                          ),
+                          ListTile(
+                            leading: const Icon(Icons.library_books_rounded, color: Color(0xFF1D4ED8)),
+                            title: const Text('Question Bank Library'),
+                            onTap: () {
+                              Navigator.pop(context);
+                              _open(const ApprovedQuestionsPage());
+                            },
+                          ),
+                        ] else ...[
+                          if (isTeacher)
+                            ListTile(
+                              leading: const Icon(Icons.edit_note_rounded, color: Color(0xFF1D4ED8)),
+                              title: const Text('MCQ Drafting Workspace'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _open(const QuestionDraftingPage());
+                              },
+                            ),
+                          if (isCommittee) ...[
+                            ListTile(
+                              leading: const Icon(Icons.assignment_ind_rounded, color: Color(0xFF1D4ED8)),
+                              title: const Text('Committee Delegation'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _open(const DelegationPage());
+                              },
+                            ),
+                            ListTile(
+                              leading: const Icon(Icons.rate_review_rounded, color: Color(0xFF1D4ED8)),
+                              title: const Text('Curation Board'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _open(const ReviewPoolPage());
+                              },
+                            ),
+                            ListTile(
+                              leading: const Icon(Icons.warning_amber_rounded, color: Color(0xFF1D4ED8)),
+                              title: const Text('Compliance Board'),
+                              onTap: () {
+                                Navigator.pop(context);
+                                _open(const ComplianceDashboard());
+                              },
+                            ),
+                          ],
+                        ],
+                        const Divider(),
+                        ListTile(
+                          leading: const Icon(Icons.person_rounded, color: Color(0xFF1D4ED8)),
+                          title: const Text('My Profile'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _open(const ProfileScreen());
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.logout_rounded, color: Colors.redAccent),
+                          title: const Text('Sign Out'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            _signOut();
+                          },
+                        ),
+                      ],
                     ),
-                    PopupMenuItem(
-                      value: () => _open(const ComplianceDashboard()),
-                      child: const ListTile(
-                        leading: Icon(Icons.warning_amber_rounded),
-                        title: Text('Compliance Board'),
-                      ),
-                    ),
-                  ]);
-                }
-              }
-              return items;
-            },
+                  ),
+                ],
+              ),
+            ),
           );
         }
 
@@ -1264,23 +1310,24 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
             ),
             actions: [
-              // ignore: use_null_aware_elements
-              if (overflowMenu != null) overflowMenu,
               ...menuButtons,
-              IconButton(
-                tooltip: 'My Profile',
-                icon: const Icon(Icons.person_rounded),
-                onPressed: () => _open(const ProfileScreen()),
-              ),
-              const SizedBox(width: 8),
-              IconButton(
-                tooltip: 'Sign Out',
-                icon: const Icon(Icons.logout_rounded),
-                onPressed: _signOut,
-              ),
-              const SizedBox(width: 12),
+              if (showFullMenu || showCompactMenu) ...[
+                IconButton(
+                  tooltip: 'My Profile',
+                  icon: const Icon(Icons.person_rounded),
+                  onPressed: () => _open(const ProfileScreen()),
+                ),
+                const SizedBox(width: 8),
+                IconButton(
+                  tooltip: 'Sign Out',
+                  icon: const Icon(Icons.logout_rounded),
+                  onPressed: _signOut,
+                ),
+                const SizedBox(width: 12),
+              ],
             ],
           ),
+          drawer: mobileDrawer,
           body: isAnyAdmin
               ? _buildAdminDashboard(context, isSuperAdmin, displayName, roles)
               : _buildUserDashboard(context, displayName, roles),
