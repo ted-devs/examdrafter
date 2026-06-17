@@ -6,6 +6,9 @@
 *.swp
 .buildlog/
 .history
+.agents/
+skills-lock.json
+
 
 
 
