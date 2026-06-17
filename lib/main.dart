@@ -204,66 +204,7 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
-  Widget _actionCard({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required Color color,
-    required VoidCallback onTap,
-  }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
-      onTap: onTap,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      color.withValues(alpha: 0.95),
-                      color.withValues(alpha: 0.72),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: Colors.white),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.blueGrey.shade600,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 12),
-              Icon(Icons.arrow_forward_rounded, color: color),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
+
 
   Widget _buildAdminDashboard(BuildContext context, bool isSuperAdmin, String displayName, Map<String, dynamic> roles) {
     return SingleChildScrollView(
@@ -472,91 +413,7 @@ class _MyHomePageState extends State<MyHomePage> {
               );
             },
           ),
-          const SizedBox(height: 24),
-          Text(
-            'Quick actions',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 12),
-           Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              if (isSuperAdmin)
-                SizedBox(
-                  width: 320,
-                  child: _actionCard(
-                    title: 'Taxonomy Management',
-                    subtitle: 'Define departments, sections, courses, and topics.',
-                    icon: Icons.business_rounded,
-                    color: const Color(0xFF2563EB),
-                    onTap: () => _open(const TaxonomyManagementScreen()),
-                  ),
-                ),
-              SizedBox(
-                width: 320,
-                child: _actionCard(
-                  title: 'User Role Management',
-                  subtitle: 'Manage permissions and assign teachers to courses.',
-                  icon: Icons.shield_rounded,
-                  color: const Color(0xFF10B981),
-                  onTap: () => _open(const UserRolesScreen()),
-                ),
-              ),
-              SizedBox(
-                width: 320,
-                child: _actionCard(
-                  title: 'Commission Exam Paper',
-                  subtitle: 'Create a new exam request for a course section.',
-                  icon: Icons.assignment_rounded,
-                  color: const Color(0xFFF59E0B),
-                  onTap: () => _open(const ExamCommissionForm()),
-                ),
-              ),
-              SizedBox(
-                width: 320,
-                child: _actionCard(
-                  title: 'Committee Delegation',
-                  subtitle: 'Set timelines and split quotas among teachers.',
-                  icon: Icons.assignment_ind_rounded,
-                  color: const Color(0xFF8B5CF6),
-                  onTap: () => _open(const DelegationPage()),
-                ),
-              ),
-              SizedBox(
-                width: 320,
-                child: _actionCard(
-                  title: 'Curation Board',
-                  subtitle: 'Collaborate on question selection and voting.',
-                  icon: Icons.rate_review_rounded,
-                  color: const Color(0xFFEC4899),
-                  onTap: () => _open(const ReviewPoolPage()),
-                ),
-              ),
-              SizedBox(
-                width: 320,
-                child: _actionCard(
-                  title: 'Exam Review Board',
-                  subtitle: 'Review finalized papers, approve, and print PDF.',
-                  icon: Icons.verified_user_rounded,
-                  color: const Color(0xFF0F172A),
-                  onTap: () => _open(const AdminReviewScreen()),
-                ),
-              ),
-              SizedBox(
-                width: 320,
-                child: _actionCard(
-                  title: 'Question Bank Library',
-                  subtitle: 'View the immutable bank of approved questions.',
-                  icon: Icons.library_books_rounded,
-                  color: const Color(0xFF0369A1),
-                  onTap: () => _open(const ApprovedQuestionsPage()),
-                ),
-              ),
-            ],
-          ),
+
           _buildExtensionRequestsSection(),
           const SizedBox(height: 24),
           Row(
@@ -885,9 +742,6 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildUserDashboard(BuildContext context, String displayName, Map<String, dynamic> roles) {
-    final isTeacher = roles.entries.any((entry) => entry.key.startsWith('course_') && entry.value == 'teacher');
-    final isCommittee = roles.entries.any((entry) => entry.key.startsWith('course_') && (entry.value == 'committee_lead' || entry.value == 'committee_member'));
-
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -940,67 +794,86 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           const SizedBox(height: 32),
           Text(
-            'Quick Actions',
+            'My Course Assignments & Roles',
             style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
           ),
           const SizedBox(height: 12),
-          Wrap(
-            spacing: 16,
-            runSpacing: 16,
-            children: [
-              if (isTeacher)
-                SizedBox(
-                  width: 320,
-                  child: _actionCard(
-                    title: 'MCQ Drafting Workspace',
-                    subtitle: 'Create, edit, and submit delegated exam questions.',
-                    icon: Icons.edit_note_rounded,
-                    color: const Color(0xFF2563EB),
-                    onTap: () => _open(const QuestionDraftingPage()),
-                  ),
+          if (roles.entries.any((entry) => entry.key.startsWith('course_')))
+            ListView(
+              shrinkWrap: true,
+              physics: const NeverScrollableScrollPhysics(),
+              children: roles.entries
+                  .where((entry) => entry.key.startsWith('course_'))
+                  .map((entry) {
+                    final courseId = entry.key.replaceFirst('course_', '');
+                    final role = entry.value;
+
+                    return FutureBuilder<DocumentSnapshot>(
+                      future: _firestore.collection('courses').doc(courseId).get(),
+                      builder: (context, snapshot) {
+                        String courseName = courseId;
+                        if (snapshot.hasData && snapshot.data!.exists) {
+                          final data = snapshot.data!.data() as Map<String, dynamic>?;
+                          courseName = '${data?['code'] ?? ''} - ${data?['name'] ?? ''}';
+                        }
+
+                        final roleColor = switch (role) {
+                          'committee_lead' => const Color(0xFFD97706),
+                          'committee_member' => const Color(0xFF2563EB),
+                          _ => const Color(0xFF059669),
+                        };
+
+                        return Card(
+                          margin: const EdgeInsets.only(bottom: 12),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                            leading: Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: roleColor.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(
+                                role == 'teacher' ? Icons.edit_note_rounded : Icons.supervised_user_circle_rounded,
+                                color: roleColor,
+                              ),
+                            ),
+                            title: Text(
+                              courseName,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
+                            subtitle: Text(
+                              'Role: ${role.toString().replaceAll('_', ' ').toUpperCase()}',
+                              style: TextStyle(color: roleColor, fontWeight: FontWeight.bold, fontSize: 13),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  }).toList(),
+            )
+          else
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  children: [
+                    Icon(Icons.school_outlined, size: 48, color: Colors.grey[400]),
+                    const SizedBox(height: 12),
+                    Text(
+                      'No Course Assignments',
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.grey[700]),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'You currently have no active course roles. Please contact an Admin to assign you as a teacher or committee member.',
+                      style: TextStyle(color: Colors.grey[600]),
+                      textAlign: TextAlign.center,
+                    ),
+                  ],
                 ),
-              if (isCommittee) ...[
-                SizedBox(
-                  width: 320,
-                  child: _actionCard(
-                    title: 'Committee Delegation',
-                    subtitle: 'Set timelines and split quotas among teachers.',
-                    icon: Icons.assignment_ind_rounded,
-                    color: const Color(0xFFF59E0B),
-                    onTap: () => _open(const DelegationPage()),
-                  ),
-                ),
-                SizedBox(
-                  width: 320,
-                  child: _actionCard(
-                    title: 'Curation Board',
-                    subtitle: 'Collaborate on question selection and voting.',
-                    icon: Icons.rate_review_rounded,
-                    color: const Color(0xFF10B981),
-                    onTap: () => _open(const ReviewPoolPage()),
-                  ),
-                ),
-                SizedBox(
-                  width: 320,
-                  child: _actionCard(
-                    title: 'Compliance Board',
-                    subtitle: 'Monitor teacher progress and reassign quotas.',
-                    icon: Icons.warning_amber_rounded,
-                    color: const Color(0xFFE11D48),
-                    onTap: () => _open(const ComplianceDashboard()),
-                  ),
-                ),
-              ],
-              if (!isTeacher && !isCommittee)
-                const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 24),
-                  child: Text(
-                    'You currently have no active course roles. Please contact an Admin to assign you as a teacher or committee member.',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-            ],
-          ),
+              ),
+            ),
         ],
       ),
     );
