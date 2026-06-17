@@ -553,11 +553,16 @@ class _MyHomePageState extends State<MyHomePage> {
           ),
           const SizedBox(height: 12),
           StreamBuilder<QuerySnapshot>(
-            stream: _firestore
-                .collection('exam_requests')
-                .orderBy('createdAt', descending: true)
-                .limit(5)
-                .snapshots(),
+            stream: isSuperAdmin
+                ? _firestore
+                    .collection('exam_requests')
+                    .orderBy('createdAt', descending: true)
+                    .limit(5)
+                    .snapshots()
+                : _firestore
+                    .collection('exam_requests')
+                    .where('createdByUid', isEqualTo: AuthService().currentUser?.uid ?? '')
+                    .snapshots(),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
@@ -566,8 +571,22 @@ class _MyHomePageState extends State<MyHomePage> {
                 return const _EmptyActivityCard();
               }
 
+              var docs = snapshot.data!.docs;
+              if (!isSuperAdmin) {
+                docs = List.from(docs);
+                docs.sort((a, b) {
+                  final aTime = (a.data() as Map<String, dynamic>?)?['createdAt'] as Timestamp?;
+                  final bTime = (b.data() as Map<String, dynamic>?)?['createdAt'] as Timestamp?;
+                  if (aTime == null || bTime == null) return 0;
+                  return bTime.compareTo(aTime); // descending
+                });
+                if (docs.length > 5) {
+                  docs = docs.sublist(0, 5);
+                }
+              }
+
               return Column(
-                children: snapshot.data!.docs.map((doc) {
+                children: docs.map((doc) {
                   final req = doc.data() as Map<String, dynamic>;
                   final status = req['status'] ?? 'commissioned';
                   final courseId = req['courseId'] ?? '';

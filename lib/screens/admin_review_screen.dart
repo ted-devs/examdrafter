@@ -23,6 +23,43 @@ class _AdminReviewScreenState extends State<AdminReviewScreen> {
 
   bool _isSubmitting = false;
 
+  bool _isSuperAdmin = false;
+  bool _isLoadingRole = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkUserRole();
+  }
+
+  Future<void> _checkUserRole() async {
+    try {
+      final uid = _authService.currentUser?.uid;
+      if (uid != null) {
+        final doc = await _firestore.collection('users').doc(uid).get();
+        if (doc.exists) {
+          final data = doc.data()!;
+          final roles = data['roles'] as Map<String, dynamic>? ?? {};
+          final globalRole = roles['global'] ?? 'user';
+          if (mounted) {
+            setState(() {
+              _isSuperAdmin = globalRole == 'super_admin';
+              _isLoadingRole = false;
+            });
+          }
+          return;
+        }
+      }
+    } catch (e) {
+      debugPrint('Error checking user role: $e');
+    }
+    if (mounted) {
+      setState(() {
+        _isLoadingRole = false;
+      });
+    }
+  }
+
   static const primaryBlue = Color(0xFF1D4ED8);
   static const lightBlueBg = Color(0xFFEFF6FF);
 
@@ -408,11 +445,20 @@ class _AdminReviewScreenState extends State<AdminReviewScreen> {
   }
 
   Widget _buildRequestsList(ExamRequestStatus status, {EdgeInsets padding = const EdgeInsets.symmetric(vertical: 16, horizontal: 8)}) {
+    if (_isLoadingRole) {
+      return const Center(child: CircularProgressIndicator(color: primaryBlue));
+    }
+
+    final Query baseQuery = _firestore
+        .collection('exam_requests')
+        .where('status', isEqualTo: status.toJson());
+
+    final Query finalQuery = _isSuperAdmin
+        ? baseQuery
+        : baseQuery.where('createdByUid', isEqualTo: _authService.currentUser?.uid ?? '');
+
     return StreamBuilder<QuerySnapshot>(
-      stream: _firestore
-          .collection('exam_requests')
-          .where('status', isEqualTo: status.toJson())
-          .snapshots(),
+      stream: finalQuery.snapshots(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: primaryBlue));
