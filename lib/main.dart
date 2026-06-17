@@ -207,58 +207,127 @@ class _MyHomePageState extends State<MyHomePage> {
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    Stream<int>? pendingStream,
   }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
-      onTap: onTap,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      color.withValues(alpha: 0.95),
-                      color.withValues(alpha: 0.72),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: Colors.white),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    Widget buildCard(int pendingCount) {
+      return InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Card(
+          // Highlight card border when there are pending items
+          shape: pendingCount > 0
+              ? RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(color: color.withValues(alpha: 0.55), width: 1.5),
+                )
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                // Icon with a pending-count badge overlaid
+                Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            color.withValues(alpha: 0.95),
+                            color.withValues(alpha: 0.72),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
                       ),
+                      child: Icon(icon, color: Colors.white),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.blueGrey.shade600,
+                    if (pendingCount > 0)
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade600,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red.withValues(alpha: 0.35),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            pendingCount > 99 ? '99+' : '$pendingCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Icon(Icons.arrow_forward_rounded, color: color),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.blueGrey.shade600,
+                        ),
+                      ),
+                      if (pendingCount > 0) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.circle, size: 7, color: Colors.red.shade500),
+                            const SizedBox(width: 5),
+                            Text(
+                              '$pendingCount pending item${pendingCount == 1 ? '' : 's'}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.red.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.arrow_forward_rounded, color: color),
+              ],
+            ),
           ),
         ),
-      ),
+      );
+    }
+
+    if (pendingStream == null) return buildCard(0);
+
+    return StreamBuilder<int>(
+      stream: pendingStream,
+      initialData: 0,
+      builder: (context, snap) => buildCard(snap.data ?? 0),
     );
   }
 
@@ -838,6 +907,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           icon: Icons.edit_note_rounded,
                           color: const Color(0xFF2563EB),
                           onTap: () => _open(const QuestionDraftingPage()),
+                          // Count draft questions owned by this user that haven't been submitted yet
+                          pendingStream: _firestore
+                              .collection('questions')
+                              .where('authorUid', isEqualTo: AuthService().currentUser?.uid ?? '')
+                              .where('status', isEqualTo: 'draft')
+                              .snapshots()
+                              .map((s) => s.docs.length),
                         ),
                       ),
                     if (isCommittee) ...[
@@ -849,6 +925,12 @@ class _MyHomePageState extends State<MyHomePage> {
                           icon: Icons.assignment_ind_rounded,
                           color: const Color(0xFFF59E0B),
                           onTap: () => _open(const DelegationPage()),
+                          // Count exam requests that need the committee to act on
+                          pendingStream: _firestore
+                              .collection('exam_requests')
+                              .where('status', whereIn: ['commissioned', 'returned_for_revision'])
+                              .snapshots()
+                              .map((s) => s.docs.length),
                         ),
                       ),
                       SizedBox(
@@ -859,6 +941,12 @@ class _MyHomePageState extends State<MyHomePage> {
                           icon: Icons.rate_review_rounded,
                           color: const Color(0xFF10B981),
                           onTap: () => _open(const ReviewPoolPage()),
+                          // Count delegated exam requests awaiting curation
+                          pendingStream: _firestore
+                              .collection('exam_requests')
+                              .where('status', isEqualTo: 'delegated')
+                              .snapshots()
+                              .map((s) => s.docs.length),
                         ),
                       ),
                       SizedBox(
@@ -869,6 +957,12 @@ class _MyHomePageState extends State<MyHomePage> {
                           icon: Icons.warning_amber_rounded,
                           color: const Color(0xFFE11D48),
                           onTap: () => _open(const ComplianceDashboard()),
+                          // Count active curations that still have an open internal deadline
+                          pendingStream: _firestore
+                              .collection('curations')
+                              .where('status', isEqualTo: 'active')
+                              .snapshots()
+                              .map((s) => s.docs.length),
                         ),
                       ),
                     ],
