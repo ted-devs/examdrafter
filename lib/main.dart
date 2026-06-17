@@ -145,6 +145,29 @@ class _MyHomePageState extends State<MyHomePage> {
     }
   }
 
+  Widget _menuItem({
+    required String label,
+    required IconData icon,
+    required VoidCallback onPressed,
+    required bool showFull,
+    required bool showIconOnly,
+  }) {
+    if (showFull) {
+      return TextButton.icon(
+        onPressed: onPressed,
+        icon: Icon(icon),
+        label: Text(label),
+      );
+    } else if (showIconOnly) {
+      return IconButton(
+        tooltip: label,
+        icon: Icon(icon),
+        onPressed: onPressed,
+      );
+    }
+    return const SizedBox.shrink();
+  }
+
   Widget _metricCard(String label, String value, IconData icon, Color color) {
     return Card(
       child: Padding(
@@ -1006,6 +1029,222 @@ class _MyHomePageState extends State<MyHomePage> {
         final isAdmin = globalRole == 'admin';
         final isAnyAdmin = isSuperAdmin || isAdmin;
 
+        final isTeacher = roles.entries.any((entry) => entry.key.startsWith('course_') && entry.value == 'teacher');
+        final isCommittee = roles.entries.any((entry) => entry.key.startsWith('course_') && (entry.value == 'committee_lead' || entry.value == 'committee_member'));
+
+        final width = MediaQuery.of(context).size.width;
+        final showFullMenu = width > 1300;
+        final showCompactMenu = width > 900 && width <= 1300;
+
+        final List<Widget> menuButtons = [];
+
+        if (isSuperAdmin) {
+          menuButtons.add(
+            _menuItem(
+              label: 'Taxonomy',
+              icon: Icons.business_rounded,
+              onPressed: () => _open(const TaxonomyManagementScreen()),
+              showFull: showFullMenu,
+              showIconOnly: showCompactMenu,
+            ),
+          );
+        }
+
+        if (isAnyAdmin) {
+          menuButtons.addAll([
+            _menuItem(
+              label: 'Roles',
+              icon: Icons.shield_rounded,
+              onPressed: () => _open(const UserRolesScreen()),
+              showFull: showFullMenu,
+              showIconOnly: showCompactMenu,
+            ),
+            _menuItem(
+              label: 'Commission',
+              icon: Icons.assignment_rounded,
+              onPressed: () => _open(const ExamCommissionForm()),
+              showFull: showFullMenu,
+              showIconOnly: showCompactMenu,
+            ),
+            _menuItem(
+              label: 'Delegation',
+              icon: Icons.assignment_ind_rounded,
+              onPressed: () => _open(const DelegationPage()),
+              showFull: showFullMenu,
+              showIconOnly: showCompactMenu,
+            ),
+            _menuItem(
+              label: 'Curation',
+              icon: Icons.rate_review_rounded,
+              onPressed: () => _open(const ReviewPoolPage()),
+              showFull: showFullMenu,
+              showIconOnly: showCompactMenu,
+            ),
+            _menuItem(
+              label: 'Review Board',
+              icon: Icons.verified_user_rounded,
+              onPressed: () => _open(const AdminReviewScreen()),
+              showFull: showFullMenu,
+              showIconOnly: showCompactMenu,
+            ),
+            _menuItem(
+              label: 'Question Bank',
+              icon: Icons.library_books_rounded,
+              onPressed: () => _open(const ApprovedQuestionsPage()),
+              showFull: showFullMenu,
+              showIconOnly: showCompactMenu,
+            ),
+          ]);
+        } else {
+          if (isTeacher) {
+            menuButtons.add(
+              _menuItem(
+                label: 'Drafting',
+                icon: Icons.edit_note_rounded,
+                onPressed: () => _open(const QuestionDraftingPage()),
+                showFull: showFullMenu,
+                showIconOnly: showCompactMenu,
+              ),
+            );
+          }
+          if (isCommittee) {
+            menuButtons.addAll([
+              _menuItem(
+                label: 'Delegation',
+                icon: Icons.assignment_ind_rounded,
+                onPressed: () => _open(const DelegationPage()),
+                showFull: showFullMenu,
+                showIconOnly: showCompactMenu,
+              ),
+              _menuItem(
+                label: 'Curation',
+                icon: Icons.rate_review_rounded,
+                onPressed: () => _open(const ReviewPoolPage()),
+                showFull: showFullMenu,
+                showIconOnly: showCompactMenu,
+              ),
+              _menuItem(
+                label: 'Compliance',
+                icon: Icons.warning_amber_rounded,
+                onPressed: () => _open(const ComplianceDashboard()),
+                showFull: showFullMenu,
+                showIconOnly: showCompactMenu,
+              ),
+            ]);
+          }
+        }
+
+        // Clean out empty placeholders from list
+        menuButtons.removeWhere((w) => w is SizedBox);
+
+        // Build overflow popup if screen is narrow
+        Widget? overflowMenu;
+        if (!showFullMenu && !showCompactMenu && menuButtons.isNotEmpty) {
+          overflowMenu = PopupMenuButton<VoidCallback>(
+            tooltip: 'Navigation Menu',
+            icon: const Icon(Icons.menu_rounded),
+            onSelected: (callback) => callback(),
+            itemBuilder: (context) {
+              final List<PopupMenuEntry<VoidCallback>> items = [];
+              if (isSuperAdmin) {
+                items.add(
+                  PopupMenuItem(
+                    value: () => _open(const TaxonomyManagementScreen()),
+                    child: const ListTile(
+                      leading: Icon(Icons.business_rounded),
+                      title: Text('Taxonomy Management'),
+                    ),
+                  ),
+                );
+              }
+              if (isAnyAdmin) {
+                items.addAll([
+                  PopupMenuItem(
+                    value: () => _open(const UserRolesScreen()),
+                    child: const ListTile(
+                      leading: Icon(Icons.shield_rounded),
+                      title: Text('User Role Management'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: () => _open(const ExamCommissionForm()),
+                    child: const ListTile(
+                      leading: Icon(Icons.assignment_rounded),
+                      title: Text('Commission Exam'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: () => _open(const DelegationPage()),
+                    child: const ListTile(
+                      leading: Icon(Icons.assignment_ind_rounded),
+                      title: Text('Committee Delegation'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: () => _open(const ReviewPoolPage()),
+                    child: const ListTile(
+                      leading: Icon(Icons.rate_review_rounded),
+                      title: Text('Curation Board'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: () => _open(const AdminReviewScreen()),
+                    child: const ListTile(
+                      leading: Icon(Icons.verified_user_rounded),
+                      title: Text('Exam Review Board'),
+                    ),
+                  ),
+                  PopupMenuItem(
+                    value: () => _open(const ApprovedQuestionsPage()),
+                    child: const ListTile(
+                      leading: Icon(Icons.library_books_rounded),
+                      title: Text('Question Bank Library'),
+                    ),
+                  ),
+                ]);
+              } else {
+                if (isTeacher) {
+                  items.add(
+                    PopupMenuItem(
+                      value: () => _open(const QuestionDraftingPage()),
+                      child: const ListTile(
+                        leading: Icon(Icons.edit_note_rounded),
+                        title: Text('MCQ Drafting Workspace'),
+                      ),
+                    ),
+                  );
+                }
+                if (isCommittee) {
+                  items.addAll([
+                    PopupMenuItem(
+                      value: () => _open(const DelegationPage()),
+                      child: const ListTile(
+                        leading: Icon(Icons.assignment_ind_rounded),
+                        title: Text('Committee Delegation'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: () => _open(const ReviewPoolPage()),
+                      child: const ListTile(
+                        leading: Icon(Icons.rate_review_rounded),
+                        title: Text('Curation Board'),
+                      ),
+                    ),
+                    PopupMenuItem(
+                      value: () => _open(const ComplianceDashboard()),
+                      child: const ListTile(
+                        leading: Icon(Icons.warning_amber_rounded),
+                        title: Text('Compliance Board'),
+                      ),
+                    ),
+                  ]);
+                }
+              }
+              return items;
+            },
+          );
+        }
+
         return Scaffold(
           appBar: AppBar(
             titleSpacing: 20,
@@ -1025,24 +1264,9 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
             ),
             actions: [
-              if (isSuperAdmin)
-                TextButton.icon(
-                  onPressed: () => _open(const TaxonomyManagementScreen()),
-                  icon: const Icon(Icons.business_rounded),
-                  label: const Text('Taxonomy'),
-                ),
-              if (isAnyAdmin) ...[
-                TextButton.icon(
-                  onPressed: () => _open(const UserRolesScreen()),
-                  icon: const Icon(Icons.shield_rounded),
-                  label: const Text('Roles'),
-                ),
-                TextButton.icon(
-                  onPressed: () => _open(const ExamCommissionForm()),
-                  icon: const Icon(Icons.assignment_rounded),
-                  label: const Text('Commission'),
-                ),
-              ],
+              // ignore: use_null_aware_elements
+              if (overflowMenu != null) overflowMenu,
+              ...menuButtons,
               IconButton(
                 tooltip: 'My Profile',
                 icon: const Icon(Icons.person_rounded),
