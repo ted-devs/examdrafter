@@ -1405,7 +1405,6 @@ class _MyHomePageState extends State<MyHomePage> {
                   stream: _firestore
                       .collection('notifications')
                       .where('targetUid', isEqualTo: AuthService().currentUser?.uid ?? '')
-                      .orderBy('createdAt', descending: true)
                       .snapshots(),
                   builder: (context, snapshot) {
                     if (snapshot.connectionState == ConnectionState.waiting) {
@@ -1429,13 +1428,17 @@ class _MyHomePageState extends State<MyHomePage> {
                     }
 
                     final docs = snapshot.data!.docs;
+                    final items = docs.map((doc) {
+                      return SystemNotification.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+                    }).toList();
+                    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
                     return ListView.separated(
                       padding: const EdgeInsets.all(12),
-                      itemCount: docs.length,
+                      itemCount: items.length,
                       separatorBuilder: (context, index) => const SizedBox(height: 8),
                       itemBuilder: (context, index) {
-                        final doc = docs[index];
-                        final item = SystemNotification.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+                        final item = items[index];
                         
                         final itemIcon = switch (item.type) {
                           'exam_commissioned' => Icons.assignment_rounded,
