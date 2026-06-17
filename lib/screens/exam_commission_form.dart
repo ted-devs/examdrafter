@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/exam_request.dart';
 import '../models/taxonomy.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 class ExamCommissionForm extends StatefulWidget {
   const ExamCommissionForm({super.key});
@@ -379,6 +380,25 @@ class _ExamCommissionFormState extends State<ExamCommissionForm> {
       );
 
       await docRef.set(examReq.toMap());
+
+      // Send notifications to course committee leads and members
+      try {
+        final courseDoc = await _firestore.collection('courses').doc(_selectedCourseId).get();
+        final courseData = courseDoc.data();
+        final courseCode = courseData?['code'] ?? _selectedCourseId;
+        final courseName = courseData?['name'] ?? '';
+
+        await NotificationService().sendNotificationToCourseRole(
+          courseId: _selectedCourseId!,
+          targetRoles: ['committee_lead', 'committee_member'],
+          title: 'New Exam Request',
+          message: 'A new exam request for $courseCode - $courseName (Section $_section) has been commissioned.',
+          type: 'exam_commissioned',
+          relatedRequestId: docRef.id,
+        );
+      } catch (e) {
+        // Safe fallback for notification failures
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

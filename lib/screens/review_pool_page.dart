@@ -5,6 +5,7 @@ import '../models/exam_curation.dart';
 import '../models/question.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 class ReviewPoolPage extends StatefulWidget {
   const ReviewPoolPage({super.key});
@@ -300,6 +301,23 @@ class _ReviewPoolPageState extends State<ReviewPoolPage> {
       }
 
       await batch.commit();
+
+      // Send notifications to all admins
+      try {
+        final courseDoc = await _firestore.collection('courses').doc(_selectedRequest!.courseId).get();
+        final courseData = courseDoc.data();
+        final courseCode = courseData?['code'] ?? _selectedRequest!.courseId;
+        final courseName = courseData?['name'] ?? '';
+
+        await NotificationService().sendNotificationToAdmins(
+          title: 'Curation Ready for Review',
+          message: 'The exam curation for $courseCode - $courseName (Section: ${_selectedRequest!.section}) has been finalized and submitted for review.',
+          type: 'curation_finalized',
+          relatedRequestId: _selectedRequest!.id,
+        );
+      } catch (e) {
+        // Safe fallback for notification failures
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

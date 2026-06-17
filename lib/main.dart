@@ -3,7 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
+import 'models/notification.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 import 'screens/login_page.dart';
 import 'screens/taxonomy_management_screen.dart';
 import 'screens/user_roles_screen.dart';
@@ -125,6 +127,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _showNotificationsPanel = false;
 
   Future<void> _open(Widget page) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
@@ -204,58 +207,127 @@ class _MyHomePageState extends State<MyHomePage> {
     required IconData icon,
     required Color color,
     required VoidCallback onTap,
+    Stream<int>? pendingStream,
   }) {
-    return InkWell(
-      borderRadius: BorderRadius.circular(24),
-      onTap: onTap,
-      child: Card(
-        child: Padding(
-          padding: const EdgeInsets.all(18),
-          child: Row(
-            children: [
-              Container(
-                width: 52,
-                height: 52,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                    colors: [
-                      color.withValues(alpha: 0.95),
-                      color.withValues(alpha: 0.72),
-                    ],
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                  ),
-                  borderRadius: BorderRadius.circular(16),
-                ),
-                child: Icon(icon, color: Colors.white),
-              ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    Widget buildCard(int pendingCount) {
+      return InkWell(
+        borderRadius: BorderRadius.circular(24),
+        onTap: onTap,
+        child: Card(
+          // Highlight card border when there are pending items
+          shape: pendingCount > 0
+              ? RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(24),
+                  side: BorderSide(color: color.withValues(alpha: 0.55), width: 1.5),
+                )
+              : null,
+          child: Padding(
+            padding: const EdgeInsets.all(18),
+            child: Row(
+              children: [
+                // Icon with a pending-count badge overlaid
+                Stack(
+                  clipBehavior: Clip.none,
                   children: [
-                    Text(
-                      title,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
+                    Container(
+                      width: 52,
+                      height: 52,
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            color.withValues(alpha: 0.95),
+                            color.withValues(alpha: 0.72),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(16),
                       ),
+                      child: Icon(icon, color: Colors.white),
                     ),
-                    const SizedBox(height: 4),
-                    Text(
-                      subtitle,
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.blueGrey.shade600,
+                    if (pendingCount > 0)
+                      Positioned(
+                        top: -6,
+                        right: -6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade600,
+                            borderRadius: BorderRadius.circular(12),
+                            border: Border.all(color: Colors.white, width: 1.5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.red.withValues(alpha: 0.35),
+                                blurRadius: 6,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            pendingCount > 99 ? '99+' : '$pendingCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 10,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
                       ),
-                    ),
                   ],
                 ),
-              ),
-              const SizedBox(width: 12),
-              Icon(Icons.arrow_forward_rounded, color: color),
-            ],
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.w800,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        subtitle,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: Colors.blueGrey.shade600,
+                        ),
+                      ),
+                      if (pendingCount > 0) ...[
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            Icon(Icons.circle, size: 7, color: Colors.red.shade500),
+                            const SizedBox(width: 5),
+                            Text(
+                              '$pendingCount pending item${pendingCount == 1 ? '' : 's'}',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.red.shade600,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Icon(Icons.arrow_forward_rounded, color: color),
+              ],
+            ),
           ),
         ),
-      ),
+      );
+    }
+
+    if (pendingStream == null) return buildCard(0);
+
+    return StreamBuilder<int>(
+      stream: pendingStream,
+      initialData: 0,
+      builder: (context, snap) => buildCard(snap.data ?? 0),
     );
   }
 
@@ -682,14 +754,18 @@ class _MyHomePageState extends State<MyHomePage> {
                                   batch.update(_firestore.collection('extension_requests').doc(extId), {
                                     'status': 'rejected',
                                   });
-                                  batch.set(_firestore.collection('notifications').doc(), {
-                                    'title': 'Extension Request Rejected',
-                                    'message': 'Extension request for course $courseId was rejected by Admin.',
-                                    'type': 'extension_request_rejected',
-                                    'relatedRequestId': examRequestId,
-                                    'createdAt': Timestamp.fromDate(DateTime.now()),
-                                  });
                                   await batch.commit();
+
+                                  final requesterUid = extMap['requestedByUid'] ?? '';
+                                  if (requesterUid.isNotEmpty) {
+                                    await NotificationService().sendNotification(
+                                      targetUid: requesterUid,
+                                      title: 'Extension Request Rejected',
+                                      message: 'Your extension request for Course $courseId was rejected by Admin.',
+                                      type: 'extension_decided',
+                                      relatedRequestId: examRequestId,
+                                    );
+                                  }
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -715,14 +791,18 @@ class _MyHomePageState extends State<MyHomePage> {
                                   batch.update(_firestore.collection('exam_requests').doc(examRequestId), {
                                     'internalDeadline': Timestamp.fromDate(requestedDeadline),
                                   });
-                                  batch.set(_firestore.collection('notifications').doc(), {
-                                    'title': 'Extension Request Approved',
-                                    'message': 'Extension request for course $courseId was approved. New deadline: ${requestedDeadline.toLocal().toString().split(' ')[0]}.',
-                                    'type': 'extension_request_approved',
-                                    'relatedRequestId': examRequestId,
-                                    'createdAt': Timestamp.fromDate(DateTime.now()),
-                                  });
                                   await batch.commit();
+
+                                  final requesterUid = extMap['requestedByUid'] ?? '';
+                                  if (requesterUid.isNotEmpty) {
+                                    await NotificationService().sendNotification(
+                                      targetUid: requesterUid,
+                                      title: 'Extension Request Approved',
+                                      message: 'Your extension request for Course $courseId was approved. New deadline: ${requestedDeadline.toLocal().toString().split(' ')[0]}.',
+                                      type: 'extension_decided',
+                                      relatedRequestId: examRequestId,
+                                    );
+                                  }
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -827,6 +907,13 @@ class _MyHomePageState extends State<MyHomePage> {
                           icon: Icons.edit_note_rounded,
                           color: const Color(0xFF2563EB),
                           onTap: () => _open(const QuestionDraftingPage()),
+                          // Count draft questions owned by this user that haven't been submitted yet
+                          pendingStream: _firestore
+                              .collection('questions')
+                              .where('authorUid', isEqualTo: AuthService().currentUser?.uid ?? '')
+                              .where('status', isEqualTo: 'draft')
+                              .snapshots()
+                              .map((s) => s.docs.length),
                         ),
                       ),
                     if (isCommittee) ...[
@@ -838,6 +925,12 @@ class _MyHomePageState extends State<MyHomePage> {
                           icon: Icons.assignment_ind_rounded,
                           color: const Color(0xFFF59E0B),
                           onTap: () => _open(const DelegationPage()),
+                          // Count exam requests that need the committee to act on
+                          pendingStream: _firestore
+                              .collection('exam_requests')
+                              .where('status', whereIn: ['commissioned', 'returned_for_revision'])
+                              .snapshots()
+                              .map((s) => s.docs.length),
                         ),
                       ),
                       SizedBox(
@@ -848,6 +941,12 @@ class _MyHomePageState extends State<MyHomePage> {
                           icon: Icons.rate_review_rounded,
                           color: const Color(0xFF10B981),
                           onTap: () => _open(const ReviewPoolPage()),
+                          // Count delegated exam requests awaiting curation
+                          pendingStream: _firestore
+                              .collection('exam_requests')
+                              .where('status', isEqualTo: 'delegated')
+                              .snapshots()
+                              .map((s) => s.docs.length),
                         ),
                       ),
                       SizedBox(
@@ -858,6 +957,12 @@ class _MyHomePageState extends State<MyHomePage> {
                           icon: Icons.warning_amber_rounded,
                           color: const Color(0xFFE11D48),
                           onTap: () => _open(const ComplianceDashboard()),
+                          // Count active curations that still have an open internal deadline
+                          pendingStream: _firestore
+                              .collection('curations')
+                              .where('status', isEqualTo: 'active')
+                              .snapshots()
+                              .map((s) => s.docs.length),
                         ),
                       ),
                     ],
@@ -961,7 +1066,7 @@ class _MyHomePageState extends State<MyHomePage> {
           .doc(AuthService().currentUser?.uid ?? 'unknown')
           .snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.connectionState == ConnectionState.waiting && !snapshot.hasData) {
           return const Scaffold(
             body: Center(child: CircularProgressIndicator()),
           );
@@ -1258,6 +1363,56 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             actions: [
               ...menuButtons,
+              StreamBuilder<QuerySnapshot>(
+                stream: _firestore
+                    .collection('notifications')
+                    .where('targetUid', isEqualTo: AuthService().currentUser?.uid ?? '')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        tooltip: 'Notifications',
+                        icon: const Icon(Icons.notifications_rounded),
+                        onPressed: () {
+                          setState(() {
+                            _showNotificationsPanel = !_showNotificationsPanel;
+                          });
+                        },
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: IgnorePointer(
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                '$count',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
               if (showFullMenu || showCompactMenu) ...[
                 IconButton(
                   tooltip: 'My Profile',
@@ -1275,11 +1430,234 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
           drawer: mobileDrawer,
-          body: isAnyAdmin
-              ? _buildAdminDashboard(context, isSuperAdmin, displayName, roles)
-              : _buildUserDashboard(context, displayName, roles),
+          body: Stack(
+            children: [
+              isAnyAdmin
+                  ? _buildAdminDashboard(context, isSuperAdmin, displayName, roles)
+                  : _buildUserDashboard(context, displayName, roles),
+              if (_showNotificationsPanel)
+                _buildNotificationsPanel(),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildNotificationsPanel() {
+    return Positioned(
+      top: 10,
+      right: 24,
+      bottom: 24,
+      child: Card(
+        elevation: 16,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          width: 360,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            color: Colors.white,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1D4ED8),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.notifications_active_rounded, color: Colors.white),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Notifications',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          _showNotificationsPanel = false;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('notifications')
+                      .where('targetUid', isEqualTo: AuthService().currentUser?.uid ?? '')
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.notifications_none_rounded, size: 48, color: Colors.grey[400]),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No new notifications',
+                              style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final docs = snapshot.data!.docs;
+                    final items = docs.map((doc) {
+                      return SystemNotification.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+                    }).toList();
+                    items.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: items.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final item = items[index];
+                        
+                        final itemIcon = switch (item.type) {
+                          'exam_commissioned' => Icons.assignment_rounded,
+                          'quota_delegated' => Icons.assignment_ind_rounded,
+                          'question_submitted' => Icons.rate_review_rounded,
+                          'curation_finalized' => Icons.verified_user_rounded,
+                          'exam_approved' => Icons.check_circle_rounded,
+                          'exam_rejected' => Icons.cancel_rounded,
+                          'extension_requested' => Icons.timer_outlined,
+                          'extension_decided' => Icons.timer_rounded,
+                          _ => Icons.info_rounded,
+                        };
+
+                        final itemColor = switch (item.type) {
+                          'exam_commissioned' => Colors.blue,
+                          'quota_delegated' => Colors.orange,
+                          'question_submitted' => Colors.teal,
+                          'curation_finalized' => Colors.indigo,
+                          'exam_approved' => Colors.green,
+                          'exam_rejected' => Colors.red,
+                          'extension_requested' => Colors.amber,
+                          'extension_decided' => Colors.purple,
+                          _ => Colors.grey,
+                        };
+
+                        return Card(
+                          elevation: 0,
+                          color: const Color(0xFFF8FAFC),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: Colors.grey.shade100),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () async {
+                              await NotificationService().dismissNotification(item.id);
+                              
+                              setState(() {
+                                _showNotificationsPanel = false;
+                              });
+
+                              switch (item.type) {
+                                case 'exam_commissioned':
+                                  _open(const DelegationPage());
+                                  break;
+                                case 'quota_delegated':
+                                  _open(const QuestionDraftingPage());
+                                  break;
+                                case 'question_submitted':
+                                  _open(const ReviewPoolPage());
+                                  break;
+                                case 'curation_finalized':
+                                  _open(const AdminReviewScreen());
+                                  break;
+                                case 'exam_approved':
+                                  _open(const ApprovedQuestionsPage());
+                                  break;
+                                case 'exam_rejected':
+                                  _open(const ReviewPoolPage());
+                                  break;
+                                case 'extension_requested':
+                                case 'extension_decided':
+                                  _open(const ComplianceDashboard());
+                                  break;
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: itemColor.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(itemIcon, color: itemColor, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.title,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item.message,
+                                          style: TextStyle(
+                                            color: Colors.grey[700],
+                                            fontSize: 11.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.close_rounded, size: 16),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () async {
+                                      await NotificationService().dismissNotification(item.id);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

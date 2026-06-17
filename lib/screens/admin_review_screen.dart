@@ -4,6 +4,7 @@ import '../models/exam_request.dart';
 import '../models/exam_curation.dart';
 import '../models/question.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import 'print_setup_dialog.dart';
 
 class AdminReviewScreen extends StatefulWidget {
@@ -197,6 +198,25 @@ class _AdminReviewScreenState extends State<AdminReviewScreen> {
 
         await batch.commit();
 
+        // Send notifications to teachers and committee of this course
+        try {
+          final courseDoc = await _firestore.collection('courses').doc(_selectedRequest!.courseId).get();
+          final courseData = courseDoc.data();
+          final courseCode = courseData?['code'] ?? _selectedRequest!.courseId;
+          final courseName = courseData?['name'] ?? '';
+
+          await NotificationService().sendNotificationToCourseRole(
+            courseId: _selectedRequest!.courseId,
+            targetRoles: ['committee_lead', 'committee_member', 'teacher'],
+            title: 'Exam Request Approved',
+            message: 'The curated exam paper for $courseCode - $courseName (Section ${_selectedRequest!.section}) has been approved and locked.',
+            type: 'exam_approved',
+            relatedRequestId: _selectedRequest!.id,
+          );
+        } catch (e) {
+          // Safe fallback for notification failures
+        }
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Exam paper successfully approved and locked.')),
@@ -277,23 +297,32 @@ class _AdminReviewScreenState extends State<AdminReviewScreen> {
       try {
         final batch = _firestore.batch();
         final reqRef = _firestore.collection('exam_requests').doc(_selectedRequest!.id);
-        final notifyRef = _firestore.collection('notifications').doc();
 
         batch.update(reqRef, {
           'status': ExamRequestStatus.returnedForRevision.toJson(),
           'revisionNotes': notes,
         });
 
-        // Add System Notification
-        batch.set(notifyRef, {
-          'title': 'Revision Required',
-          'message': 'Curated paper for section ${_selectedRequest!.section} returned: $notes',
-          'type': 'revision_returned',
-          'relatedRequestId': _selectedRequest!.id,
-          'createdAt': Timestamp.fromDate(DateTime.now()),
-        });
-
         await batch.commit();
+
+        // Send notifications to course committee leads and members
+        try {
+          final courseDoc = await _firestore.collection('courses').doc(_selectedRequest!.courseId).get();
+          final courseData = courseDoc.data();
+          final courseCode = courseData?['code'] ?? _selectedRequest!.courseId;
+          final courseName = courseData?['name'] ?? '';
+
+          await NotificationService().sendNotificationToCourseRole(
+            courseId: _selectedRequest!.courseId,
+            targetRoles: ['committee_lead', 'committee_member'],
+            title: 'Exam Request Returned for Revision',
+            message: 'Curated paper for $courseCode - $courseName (Section ${_selectedRequest!.section}) was returned for revision: $notes',
+            type: 'exam_rejected',
+            relatedRequestId: _selectedRequest!.id,
+          );
+        } catch (e) {
+          // Safe fallback for notification failures
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
