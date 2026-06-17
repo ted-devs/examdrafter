@@ -3,7 +3,9 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
+import 'models/notification.dart';
 import 'services/auth_service.dart';
+import 'services/notification_service.dart';
 import 'screens/login_page.dart';
 import 'screens/taxonomy_management_screen.dart';
 import 'screens/user_roles_screen.dart';
@@ -125,6 +127,7 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  bool _showNotificationsPanel = false;
 
   Future<void> _open(Widget page) async {
     await Navigator.of(context).push(MaterialPageRoute(builder: (_) => page));
@@ -682,14 +685,18 @@ class _MyHomePageState extends State<MyHomePage> {
                                   batch.update(_firestore.collection('extension_requests').doc(extId), {
                                     'status': 'rejected',
                                   });
-                                  batch.set(_firestore.collection('notifications').doc(), {
-                                    'title': 'Extension Request Rejected',
-                                    'message': 'Extension request for course $courseId was rejected by Admin.',
-                                    'type': 'extension_request_rejected',
-                                    'relatedRequestId': examRequestId,
-                                    'createdAt': Timestamp.fromDate(DateTime.now()),
-                                  });
                                   await batch.commit();
+
+                                  final requesterUid = extMap['requestedByUid'] ?? '';
+                                  if (requesterUid.isNotEmpty) {
+                                    await NotificationService().sendNotification(
+                                      targetUid: requesterUid,
+                                      title: 'Extension Request Rejected',
+                                      message: 'Your extension request for Course $courseId was rejected by Admin.',
+                                      type: 'extension_decided',
+                                      relatedRequestId: examRequestId,
+                                    );
+                                  }
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -715,14 +722,18 @@ class _MyHomePageState extends State<MyHomePage> {
                                   batch.update(_firestore.collection('exam_requests').doc(examRequestId), {
                                     'internalDeadline': Timestamp.fromDate(requestedDeadline),
                                   });
-                                  batch.set(_firestore.collection('notifications').doc(), {
-                                    'title': 'Extension Request Approved',
-                                    'message': 'Extension request for course $courseId was approved. New deadline: ${requestedDeadline.toLocal().toString().split(' ')[0]}.',
-                                    'type': 'extension_request_approved',
-                                    'relatedRequestId': examRequestId,
-                                    'createdAt': Timestamp.fromDate(DateTime.now()),
-                                  });
                                   await batch.commit();
+
+                                  final requesterUid = extMap['requestedByUid'] ?? '';
+                                  if (requesterUid.isNotEmpty) {
+                                    await NotificationService().sendNotification(
+                                      targetUid: requesterUid,
+                                      title: 'Extension Request Approved',
+                                      message: 'Your extension request for Course $courseId was approved. New deadline: ${requestedDeadline.toLocal().toString().split(' ')[0]}.',
+                                      type: 'extension_decided',
+                                      relatedRequestId: examRequestId,
+                                    );
+                                  }
                                 } catch (e) {
                                   if (context.mounted) {
                                     ScaffoldMessenger.of(context).showSnackBar(
@@ -1258,6 +1269,56 @@ class _MyHomePageState extends State<MyHomePage> {
             ),
             actions: [
               ...menuButtons,
+              StreamBuilder<QuerySnapshot>(
+                stream: _firestore
+                    .collection('notifications')
+                    .where('targetUid', isEqualTo: AuthService().currentUser?.uid ?? '')
+                    .snapshots(),
+                builder: (context, snapshot) {
+                  final count = snapshot.hasData ? snapshot.data!.docs.length : 0;
+                  return Stack(
+                    alignment: Alignment.center,
+                    children: [
+                      IconButton(
+                        tooltip: 'Notifications',
+                        icon: const Icon(Icons.notifications_rounded),
+                        onPressed: () {
+                          setState(() {
+                            _showNotificationsPanel = !_showNotificationsPanel;
+                          });
+                        },
+                      ),
+                      if (count > 0)
+                        Positioned(
+                          right: 6,
+                          top: 6,
+                          child: IgnorePointer(
+                            child: Container(
+                              padding: const EdgeInsets.all(2),
+                              decoration: const BoxDecoration(
+                                color: Colors.red,
+                                shape: BoxShape.circle,
+                              ),
+                              constraints: const BoxConstraints(
+                                minWidth: 16,
+                                minHeight: 16,
+                              ),
+                              child: Text(
+                                '$count',
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 8,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  );
+                },
+              ),
               if (showFullMenu || showCompactMenu) ...[
                 IconButton(
                   tooltip: 'My Profile',
@@ -1275,11 +1336,231 @@ class _MyHomePageState extends State<MyHomePage> {
             ],
           ),
           drawer: mobileDrawer,
-          body: isAnyAdmin
-              ? _buildAdminDashboard(context, isSuperAdmin, displayName, roles)
-              : _buildUserDashboard(context, displayName, roles),
+          body: Stack(
+            children: [
+              isAnyAdmin
+                  ? _buildAdminDashboard(context, isSuperAdmin, displayName, roles)
+                  : _buildUserDashboard(context, displayName, roles),
+              if (_showNotificationsPanel)
+                _buildNotificationsPanel(),
+            ],
+          ),
         );
       },
+    );
+  }
+
+  Widget _buildNotificationsPanel() {
+    return Positioned(
+      top: 10,
+      right: 24,
+      bottom: 24,
+      child: Card(
+        elevation: 16,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        child: Container(
+          width: 360,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            color: Colors.white,
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                decoration: const BoxDecoration(
+                  color: Color(0xFF1D4ED8),
+                  borderRadius: BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
+                ),
+                child: Row(
+                  children: [
+                    const Icon(Icons.notifications_active_rounded, color: Colors.white),
+                    const SizedBox(width: 12),
+                    const Text(
+                      'Notifications',
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 18,
+                      ),
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      icon: const Icon(Icons.close_rounded, color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          _showNotificationsPanel = false;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: _firestore
+                      .collection('notifications')
+                      .where('targetUid', isEqualTo: AuthService().currentUser?.uid ?? '')
+                      .orderBy('createdAt', descending: true)
+                      .snapshots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const Center(child: CircularProgressIndicator());
+                    }
+
+                    if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.notifications_none_rounded, size: 48, color: Colors.grey[400]),
+                            const SizedBox(height: 12),
+                            Text(
+                              'No new notifications',
+                              style: TextStyle(color: Colors.grey[600], fontWeight: FontWeight.w600),
+                            ),
+                          ],
+                        ),
+                      );
+                    }
+
+                    final docs = snapshot.data!.docs;
+                    return ListView.separated(
+                      padding: const EdgeInsets.all(12),
+                      itemCount: docs.length,
+                      separatorBuilder: (context, index) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) {
+                        final doc = docs[index];
+                        final item = SystemNotification.fromMap(doc.data() as Map<String, dynamic>, doc.id);
+                        
+                        final itemIcon = switch (item.type) {
+                          'exam_commissioned' => Icons.assignment_rounded,
+                          'quota_delegated' => Icons.assignment_ind_rounded,
+                          'question_submitted' => Icons.rate_review_rounded,
+                          'curation_finalized' => Icons.verified_user_rounded,
+                          'exam_approved' => Icons.check_circle_rounded,
+                          'exam_rejected' => Icons.cancel_rounded,
+                          'extension_requested' => Icons.timer_outlined,
+                          'extension_decided' => Icons.timer_rounded,
+                          _ => Icons.info_rounded,
+                        };
+
+                        final itemColor = switch (item.type) {
+                          'exam_commissioned' => Colors.blue,
+                          'quota_delegated' => Colors.orange,
+                          'question_submitted' => Colors.teal,
+                          'curation_finalized' => Colors.indigo,
+                          'exam_approved' => Colors.green,
+                          'exam_rejected' => Colors.red,
+                          'extension_requested' => Colors.amber,
+                          'extension_decided' => Colors.purple,
+                          _ => Colors.grey,
+                        };
+
+                        return Card(
+                          elevation: 0,
+                          color: const Color(0xFFF8FAFC),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                            side: BorderSide(color: Colors.grey.shade100),
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: InkWell(
+                            onTap: () async {
+                              await NotificationService().dismissNotification(item.id);
+                              
+                              setState(() {
+                                _showNotificationsPanel = false;
+                              });
+
+                              switch (item.type) {
+                                case 'exam_commissioned':
+                                  _open(const DelegationPage());
+                                  break;
+                                case 'quota_delegated':
+                                  _open(const QuestionDraftingPage());
+                                  break;
+                                case 'question_submitted':
+                                  _open(const ReviewPoolPage());
+                                  break;
+                                case 'curation_finalized':
+                                  _open(const AdminReviewScreen());
+                                  break;
+                                case 'exam_approved':
+                                  _open(const ApprovedQuestionsPage());
+                                  break;
+                                case 'exam_rejected':
+                                  _open(const ReviewPoolPage());
+                                  break;
+                                case 'extension_requested':
+                                case 'extension_decided':
+                                  _open(const ComplianceDashboard());
+                                  break;
+                              }
+                            },
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                              child: Row(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(8),
+                                    decoration: BoxDecoration(
+                                      color: itemColor.withValues(alpha: 0.1),
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: Icon(itemIcon, color: itemColor, size: 20),
+                                  ),
+                                  const SizedBox(width: 12),
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          item.title,
+                                          style: const TextStyle(
+                                            fontWeight: FontWeight.bold,
+                                            fontSize: 13,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          item.message,
+                                          style: TextStyle(
+                                            color: Colors.grey[700],
+                                            fontSize: 11.5,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    icon: const Icon(Icons.close_rounded, size: 16),
+                                    padding: EdgeInsets.zero,
+                                    constraints: const BoxConstraints(),
+                                    onPressed: () async {
+                                      await NotificationService().dismissNotification(item.id);
+                                    },
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        );
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

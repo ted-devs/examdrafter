@@ -6,6 +6,7 @@ import '../models/question.dart';
 import '../models/taxonomy.dart';
 import '../services/auth_service.dart';
 import '../services/draft_service.dart';
+import '../services/notification_service.dart';
 
 class QuestionDraftingPage extends StatefulWidget {
   const QuestionDraftingPage({super.key});
@@ -349,6 +350,28 @@ class _QuestionDraftingPageState extends State<QuestionDraftingPage> {
         submit: submit,
         isRevision: _isRevisionMode,
       );
+
+      if (submit) {
+        // Send notification to course committee leads and members
+        try {
+          final authorDoc = await _firestore.collection('users').doc(_currentUid).get();
+          final authorName = authorDoc.data()?['displayName'] ?? 'A teacher';
+          
+          final courseCode = _selectedDelegation!['courseCode'] ?? request.courseId;
+          final courseName = _selectedDelegation!['courseName'] ?? '';
+
+          await NotificationService().sendNotificationToCourseRole(
+            courseId: request.courseId,
+            targetRoles: ['committee_lead', 'committee_member'],
+            title: 'Question Submitted for Curation',
+            message: '$authorName submitted a new question for $courseCode - $courseName.',
+            type: 'question_submitted',
+            relatedRequestId: request.id,
+          );
+        } catch (e) {
+          // Safe fallback for notification failures
+        }
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

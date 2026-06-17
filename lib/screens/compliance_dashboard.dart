@@ -5,6 +5,7 @@ import '../models/exam_curation.dart';
 import '../models/user_profile.dart';
 import '../models/extension_request.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 class ComplianceDashboard extends StatefulWidget {
   const ComplianceDashboard({super.key});
@@ -384,7 +385,6 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
       try {
         final batch = _firestore.batch();
         final extRef = _firestore.collection('extension_requests').doc();
-        final notifyRef = _firestore.collection('notifications').doc();
 
         // 1. Create extension request
         final request = ExtensionRequest(
@@ -399,16 +399,24 @@ class _ComplianceDashboardState extends State<ComplianceDashboard> {
         );
         batch.set(extRef, request.toMap());
 
-        // 2. Create notification
-        batch.set(notifyRef, {
-          'title': 'Extension Requested',
-          'message': 'Extension requested for ${_selectedRequest!.courseId} until ${selectedDate!.toLocal().toString().split(' ')[0]}. Reason: $reason',
-          'type': 'extension_request',
-          'relatedRequestId': _selectedRequest!.id,
-          'createdAt': Timestamp.fromDate(DateTime.now()),
-        });
-
         await batch.commit();
+
+        // Send notifications to all admins
+        try {
+          final courseDoc = await _firestore.collection('courses').doc(_selectedRequest!.courseId).get();
+          final courseData = courseDoc.data();
+          final courseCode = courseData?['code'] ?? _selectedRequest!.courseId;
+          final courseName = courseData?['name'] ?? '';
+
+          await NotificationService().sendNotificationToAdmins(
+            title: 'Extension Requested',
+            message: 'Extension requested for $courseCode - $courseName until ${selectedDate!.toLocal().toString().split(' ')[0]}. Reason: $reason',
+            type: 'extension_requested',
+            relatedRequestId: _selectedRequest!.id,
+          );
+        } catch (_) {
+          // Safe fallback for notification failures
+        }
 
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(

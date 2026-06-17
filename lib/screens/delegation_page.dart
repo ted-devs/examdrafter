@@ -4,6 +4,7 @@ import '../models/exam_request.dart';
 import '../models/exam_curation.dart';
 import '../models/user_profile.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 
 class DelegationPage extends StatefulWidget {
   const DelegationPage({super.key});
@@ -222,6 +223,26 @@ class _DelegationPageState extends State<DelegationPage> {
         'status': ExamRequestStatus.delegated.toJson(),
         'internalDeadline': Timestamp.fromDate(_internalDeadline!),
       });
+
+      // Send notifications to each delegated teacher
+      try {
+        final courseDoc = await _firestore.collection('courses').doc(_selectedRequest!.courseId).get();
+        final courseData = courseDoc.data();
+        final courseCode = courseData?['code'] ?? _selectedRequest!.courseId;
+        final courseName = courseData?['name'] ?? '';
+
+        for (final delegation in _delegations) {
+          await NotificationService().sendNotification(
+            targetUid: delegation.teacherUid,
+            title: 'New Drafting Quota Delegated',
+            message: 'You have been assigned a quota of ${delegation.questionCount} questions for $courseCode - $courseName (Section: ${_selectedRequest!.section}). Deadline is ${_internalDeadline!.toLocal().toString().split(" ")[0]}.',
+            type: 'quota_delegated',
+            relatedRequestId: _selectedRequest!.id,
+          );
+        }
+      } catch (e) {
+        // Safe fallback for notification failures
+      }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
