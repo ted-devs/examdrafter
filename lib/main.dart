@@ -198,6 +198,67 @@ class _MyHomePageState extends State<MyHomePage> {
     );
   }
 
+  Widget _actionCard({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required Color color,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      borderRadius: BorderRadius.circular(24),
+      onTap: onTap,
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(18),
+          child: Row(
+            children: [
+              Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      color.withValues(alpha: 0.95),
+                      color.withValues(alpha: 0.72),
+                    ],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: Icon(icon, color: Colors.white),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      title,
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w800,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      subtitle,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.blueGrey.shade600,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Icon(Icons.arrow_forward_rounded, color: color),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
 
 
   Widget _buildAdminDashboard(BuildContext context, bool isSuperAdmin, String displayName, Map<String, dynamic> roles) {
@@ -690,6 +751,9 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 
   Widget _buildUserDashboard(BuildContext context, String displayName, Map<String, dynamic> roles) {
+    final isTeacher = roles.entries.any((entry) => entry.key.startsWith('course_') && entry.value == 'teacher');
+    final isCommittee = roles.entries.any((entry) => entry.key.startsWith('course_') && (entry.value == 'committee_lead' || entry.value == 'committee_member'));
+
     return SingleChildScrollView(
       padding: const EdgeInsets.all(24),
       child: Column(
@@ -740,6 +804,68 @@ class _MyHomePageState extends State<MyHomePage> {
               ],
             ),
           ),
+          if (isTeacher || isCommittee) ...[
+            const SizedBox(height: 32),
+            Text(
+              'Quick Actions',
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
+            ),
+            const SizedBox(height: 12),
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final width = constraints.maxWidth > 700 ? (constraints.maxWidth - 16) / 2 : constraints.maxWidth;
+                return Wrap(
+                  spacing: 16,
+                  runSpacing: 16,
+                  children: [
+                    if (isTeacher)
+                      SizedBox(
+                        width: width,
+                        child: _actionCard(
+                          title: 'MCQ Drafting Workspace',
+                          subtitle: 'Create, edit, and submit delegated exam questions.',
+                          icon: Icons.edit_note_rounded,
+                          color: const Color(0xFF2563EB),
+                          onTap: () => _open(const QuestionDraftingPage()),
+                        ),
+                      ),
+                    if (isCommittee) ...[
+                      SizedBox(
+                        width: width,
+                        child: _actionCard(
+                          title: 'Committee Delegation',
+                          subtitle: 'Set timelines and split quotas among teachers.',
+                          icon: Icons.assignment_ind_rounded,
+                          color: const Color(0xFFF59E0B),
+                          onTap: () => _open(const DelegationPage()),
+                        ),
+                      ),
+                      SizedBox(
+                        width: width,
+                        child: _actionCard(
+                          title: 'Curation Board',
+                          subtitle: 'Collaborate on question selection and voting.',
+                          icon: Icons.rate_review_rounded,
+                          color: const Color(0xFF10B981),
+                          onTap: () => _open(const ReviewPoolPage()),
+                        ),
+                      ),
+                      SizedBox(
+                        width: width,
+                        child: _actionCard(
+                          title: 'Compliance Board',
+                          subtitle: 'Monitor teacher progress and reassign quotas.',
+                          icon: Icons.warning_amber_rounded,
+                          color: const Color(0xFFE11D48),
+                          onTap: () => _open(const ComplianceDashboard()),
+                        ),
+                      ),
+                    ],
+                  ],
+                );
+              },
+            ),
+          ],
           const SizedBox(height: 32),
           Text(
             'My Course Assignments & Roles',
