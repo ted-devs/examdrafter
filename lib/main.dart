@@ -14,6 +14,7 @@ import 'screens/review_pool_page.dart';
 import 'screens/approved_questions_page.dart';
 import 'screens/admin_review_screen.dart';
 import 'screens/compliance_dashboard.dart';
+import 'screens/profile_screen.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -1042,6 +1043,11 @@ class _MyHomePageState extends State<MyHomePage> {
                   label: const Text('Commission'),
                 ),
               ],
+              IconButton(
+                tooltip: 'My Profile',
+                icon: const Icon(Icons.person_rounded),
+                onPressed: () => _open(const ProfileScreen()),
+              ),
               const SizedBox(width: 8),
               IconButton(
                 tooltip: 'Sign Out',

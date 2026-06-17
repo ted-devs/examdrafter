@@ -25,7 +25,8 @@ void main() {
         'roles': {
           'global': 'user',
           'course_cs101': 'teacher',
-        }
+        },
+        'about': 'CS Associate Professor',
       };
 
       final profile = UserProfile.fromMap(map, 'user_uid_123');
@@ -36,6 +37,7 @@ void main() {
       expect(profile.createdAt, now.toDate());
       expect(profile.roles['global'], 'user');
       expect(profile.roles['course_cs101'], 'teacher');
+      expect(profile.about, 'CS Associate Professor');
       expect(profile.hasGlobalRole('admin'), false);
       expect(profile.hasRoleInContext('course_cs101', 'teacher'), true);
     });
@@ -51,6 +53,7 @@ void main() {
           'global': 'user',
           'course_cs101': 'teacher',
         },
+        about: 'CS Associate Professor',
       );
 
       final map = profile.toMap();
@@ -60,6 +63,7 @@ void main() {
       expect(map['createdAt'], isA<Timestamp>());
       expect((map['createdAt'] as Timestamp).toDate().millisecondsSinceEpoch, now.millisecondsSinceEpoch);
       expect(map['roles']['global'], 'user');
+      expect(map['about'], 'CS Associate Professor');
     });
   });
 

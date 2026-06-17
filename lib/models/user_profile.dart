@@ -6,6 +6,7 @@ class UserProfile {
   final String? displayName;
   final DateTime createdAt;
   final Map<String, String> roles;
+  final String? about;
 
   UserProfile({
     required this.uid,
@@ -13,6 +14,7 @@ class UserProfile {
     this.displayName,
     required this.createdAt,
     required this.roles,
+    this.about,
   });
 
   /// Factory constructor to create a UserProfile from Firestore data.
@@ -43,6 +45,7 @@ class UserProfile {
       displayName: data['displayName'],
       createdAt: parsedCreatedAt,
       roles: parsedRoles,
+      about: data['about'],
     );
   }
 
@@ -53,6 +56,7 @@ class UserProfile {
       'displayName': displayName,
       'createdAt': Timestamp.fromDate(createdAt),
       'roles': roles,
+      if (about != null) 'about': about,
     };
   }
 
