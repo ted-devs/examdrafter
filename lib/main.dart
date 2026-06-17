@@ -168,39 +168,33 @@ class _MyHomePageState extends State<MyHomePage> {
     return const SizedBox.shrink();
   }
 
-  Widget _metricCard(String label, String value, IconData icon, Color color) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Icon(icon, color: color),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              value,
-              style: Theme.of(
-                context,
-              ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: Theme.of(
-                context,
-              ).textTheme.bodyMedium?.copyWith(color: Colors.blueGrey.shade600),
-            ),
-          ],
+  Widget _compactMetricItem({
+    required String label,
+    required String value,
+    required IconData icon,
+  }) {
+    return Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Icon(icon, color: Colors.white, size: 18),
         ),
-      ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(color: Colors.white70, fontSize: 13, fontWeight: FontWeight.w500),
+          ),
+        ),
+        Text(
+          value,
+          style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
+        ),
+      ],
     );
   }
 
@@ -275,25 +269,6 @@ class _MyHomePageState extends State<MyHomePage> {
                         height: 1.4,
                       ),
                     ),
-                    const SizedBox(height: 20),
-                    Wrap(
-                      spacing: 10,
-                      runSpacing: 10,
-                      children: [
-                        const Chip(
-                          label: Text('Hierarchy'),
-                          backgroundColor: Colors.white,
-                        ),
-                        const Chip(
-                          label: Text('Role Assignments'),
-                          backgroundColor: Colors.white,
-                        ),
-                        const Chip(
-                          label: Text('Commissioning'),
-                          backgroundColor: Colors.white,
-                        ),
-                      ],
-                    ),
                   ],
                 );
 
@@ -305,25 +280,63 @@ class _MyHomePageState extends State<MyHomePage> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Portal status',
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(
-                                color: Colors.white,
-                                fontWeight: FontWeight.w800,
-                              ),
+                          'Workspace Metrics',
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                        // Departments metric
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _firestore.collection('departments').snapshots(),
+                          builder: (context, snap) {
+                            final count = snap.hasData ? snap.data!.docs.length : 0;
+                            return _compactMetricItem(
+                              label: 'Departments',
+                              value: '$count',
+                              icon: Icons.business_rounded,
+                            );
+                          },
                         ),
                         const SizedBox(height: 12),
-                        const _FocusItem(
-                          icon: Icons.check_circle_outline_rounded,
-                          text: 'Taxonomy management active.',
+                        // Sections metric
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _firestore.collection('sections').snapshots(),
+                          builder: (context, snap) {
+                            final count = snap.hasData ? snap.data!.docs.length : 0;
+                            return _compactMetricItem(
+                              label: 'Sections',
+                              value: '$count',
+                              icon: Icons.layers_rounded,
+                            );
+                          },
                         ),
-                        const _FocusItem(
-                          icon: Icons.check_circle_outline_rounded,
-                          text: 'Role configurations online.',
+                        const SizedBox(height: 12),
+                        // Courses metric
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _firestore.collection('courses').snapshots(),
+                          builder: (context, snap) {
+                            final count = snap.hasData ? snap.data!.docs.length : 0;
+                            return _compactMetricItem(
+                              label: 'Courses',
+                              value: '$count',
+                              icon: Icons.school_rounded,
+                            );
+                          },
                         ),
-                        const _FocusItem(
-                          icon: Icons.check_circle_outline_rounded,
-                          text: 'Exam request submission open.',
+                        const SizedBox(height: 12),
+                        // Exam Requests metric
+                        StreamBuilder<QuerySnapshot>(
+                          stream: _firestore.collection('exam_requests').snapshots(),
+                          builder: (context, snap) {
+                            final count = snap.hasData ? snap.data!.docs.length : 0;
+                            return _compactMetricItem(
+                              label: 'Exam Requests',
+                              value: '$count',
+                              icon: Icons.assignment_rounded,
+                            );
+                          },
                         ),
                       ],
                     ),
@@ -332,11 +345,11 @@ class _MyHomePageState extends State<MyHomePage> {
 
                 if (wide) {
                   return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       Expanded(flex: 3, child: left),
                       const SizedBox(width: 20),
-                      SizedBox(width: 320, child: right),
+                      SizedBox(width: 300, child: right),
                     ],
                   );
                 }
@@ -347,71 +360,6 @@ class _MyHomePageState extends State<MyHomePage> {
                 );
               },
             ),
-          ),
-          const SizedBox(height: 24),
-          Text(
-            'Workspace at a glance',
-            style: Theme.of(
-              context,
-            ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 12),
-          LayoutBuilder(
-            builder: (context, constraints) {
-              final columns = constraints.maxWidth > 1000
-                  ? 4
-                  : constraints.maxWidth > 700
-                  ? 2
-                  : 1;
-              final width =
-                  (constraints.maxWidth - ((columns - 1) * 16)) / columns;
-              return Wrap(
-                spacing: 16,
-                runSpacing: 16,
-                children: [
-                  SizedBox(
-                    width: width,
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: _firestore.collection('departments').snapshots(),
-                      builder: (context, snap) {
-                        final count = snap.hasData ? snap.data!.docs.length : 0;
-                        return _metricCard('Departments', '$count', Icons.business_rounded, const Color(0xFF2563EB));
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: width,
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: _firestore.collection('sections').snapshots(),
-                      builder: (context, snap) {
-                        final count = snap.hasData ? snap.data!.docs.length : 0;
-                        return _metricCard('Sections', '$count', Icons.layers_rounded, const Color(0xFF8B5CF6));
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: width,
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: _firestore.collection('courses').snapshots(),
-                      builder: (context, snap) {
-                        final count = snap.hasData ? snap.data!.docs.length : 0;
-                        return _metricCard('Courses', '$count', Icons.school_rounded, const Color(0xFF10B981));
-                      },
-                    ),
-                  ),
-                  SizedBox(
-                    width: width,
-                    child: StreamBuilder<QuerySnapshot>(
-                      stream: _firestore.collection('exam_requests').snapshots(),
-                      builder: (context, snap) {
-                        final count = snap.hasData ? snap.data!.docs.length : 0;
-                        return _metricCard('Exam Requests', '$count', Icons.assignment_rounded, const Color(0xFFF59E0B));
-                      },
-                    ),
-                  ),
-                ],
-              );
-            },
           ),
 
           _buildExtensionRequestsSection(),
@@ -1210,34 +1158,7 @@ class _MyHomePageState extends State<MyHomePage> {
   }
 }
 
-class _FocusItem extends StatelessWidget {
-  const _FocusItem({required this.icon, required this.text});
 
-  final IconData icon;
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        children: [
-          Icon(icon, color: Colors.white.withValues(alpha: 0.95), size: 20),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Text(
-              text,
-              style: const TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
 
 class _EmptyActivityCard extends StatelessWidget {
   const _EmptyActivityCard();
