@@ -83,6 +83,88 @@ class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
         : const Color(0xFF2563EB);
   }
 
+  Widget _buildQuestionCard(Question item) {
+    final versionColor = _versionColor(item);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Card(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Text(
+                      item.questionText,
+                      style: Theme.of(context).textTheme.titleMedium
+                          ?.copyWith(fontWeight: FontWeight.w900),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Chip(
+                    label: Text('v${item.version}'),
+                    backgroundColor: versionColor.withValues(
+                      alpha: 0.12,
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 12),
+              Column(
+                children: item.options.map((opt) {
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Icon(
+                          opt.isCorrect
+                              ? Icons.check_circle_rounded
+                              : Icons.radio_button_off_rounded,
+                          color: opt.isCorrect ? Colors.green : Colors.grey,
+                          size: 16,
+                        ),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            opt.text,
+                            style: TextStyle(
+                              fontWeight: opt.isCorrect ? FontWeight.bold : FontWeight.normal,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 8,
+                      runSpacing: 4,
+                      children: item.topics.map((t) => Chip(label: Text(t))).toList(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    onPressed: () => _createNewVersion(item),
+                    icon: const Icon(Icons.history_rounded),
+                    tooltip: 'Revise approved question',
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -158,87 +240,40 @@ class _ApprovedQuestionsPageState extends State<ApprovedQuestionsPage> {
                 if (bank.isEmpty)
                   const _ApprovedEmptyState()
                 else
-                  ListView.separated(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    itemCount: bank.length,
-                    separatorBuilder: (context, index) => const SizedBox(height: 16),
-                    itemBuilder: (context, i) {
-                      final item = bank[i];
-                      final versionColor = _versionColor(item);
-
-                      return Card(
-                        child: Padding(
-                          padding: const EdgeInsets.all(20),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Row(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                children: [
-                                  Expanded(
-                                    child: Text(
-                                      item.questionText,
-                                      style: Theme.of(context).textTheme.titleMedium
-                                          ?.copyWith(fontWeight: FontWeight.w900),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 12),
-                                  Chip(
-                                    label: Text('v${item.version}'),
-                                    backgroundColor: versionColor.withValues(
-                                      alpha: 0.12,
-                                    ),
-                                  ),
-                                ],
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final useTwoColumns = constraints.maxWidth > 800;
+                      if (useTwoColumns) {
+                        final leftItems = <Question>[];
+                        final rightItems = <Question>[];
+                        for (int i = 0; i < bank.length; i++) {
+                          if (i % 2 == 0) {
+                            leftItems.add(bank[i]);
+                          } else {
+                            rightItems.add(bank[i]);
+                          }
+                        }
+                        return Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Expanded(
+                              child: Column(
+                                children: leftItems.map((item) => _buildQuestionCard(item)).toList(),
                               ),
-                              const SizedBox(height: 12),
-                              Column(
-                                children: item.options.map((opt) {
-                                  return Padding(
-                                    padding: const EdgeInsets.only(bottom: 6),
-                                    child: Row(
-                                      children: [
-                                        Icon(
-                                          opt.isCorrect
-                                              ? Icons.check_circle_rounded
-                                              : Icons.radio_button_off_rounded,
-                                          color: opt.isCorrect ? Colors.green : Colors.grey,
-                                          size: 16,
-                                        ),
-                                        const SizedBox(width: 8),
-                                        Expanded(
-                                          child: Text(
-                                            opt.text,
-                                            style: TextStyle(
-                                              fontWeight: opt.isCorrect ? FontWeight.bold : FontWeight.normal,
-                                            ),
-                                          ),
-                                        ),
-                                      ],
-                                    ),
-                                  );
-                                }).toList(),
+                            ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: Column(
+                                children: rightItems.map((item) => _buildQuestionCard(item)).toList(),
                               ),
-                              const SizedBox(height: 14),
-                              Row(
-                                children: [
-                                  Wrap(
-                                    spacing: 8,
-                                    children: item.topics.map((t) => Chip(label: Text(t))).toList(),
-                                  ),
-                                  const Spacer(),
-                                  IconButton.filledTonal(
-                                    onPressed: () => _createNewVersion(item),
-                                    icon: const Icon(Icons.history_rounded),
-                                    tooltip: 'Revise approved question',
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
+                            ),
+                          ],
+                        );
+                      } else {
+                        return Column(
+                          children: bank.map((item) => _buildQuestionCard(item)).toList(),
+                        );
+                      }
                     },
                   ),
               ],
